@@ -1,0 +1,66 @@
+{
+  "name": "n8n-nodes-beliq",
+  "version": "0.1.0",
+  "description": "n8n community node for beliq - generate and validate EU-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS) with authority-pinned, drift-checked rules.",
+  "keywords": [
+    "n8n-community-node-package",
+    "beliq",
+    "e-invoice",
+    "einvoice",
+    "xrechnung",
+    "zugferd",
+    "factur-x",
+    "peppol",
+    "en16931",
+    "compliance"
+  ],
+  "license": "MIT",
+  "homepage": "https://beliq.eu",
+  "author": {
+    "name": "beliq",
+    "email": "hello@beliq.eu"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beliq-eu/n8n-nodes-beliq.git"
+  },
+  "bugs": {
+    "url": "https://github.com/beliq-eu/n8n-nodes-beliq/issues"
+  },
+  "engines": {
+    "node": ">=20.15"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/copy-icons.mjs",
+    "dev": "tsc --watch",
+    "lint": "eslint nodes credentials package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "test": "vitest run --exclude test/integration.test.ts",
+    "test:integration": "vitest run test/integration.test.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/BeliqApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Beliq/Beliq.node.js"
+    ]
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.3",
+    "n8n-workflow": "*",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.8"
+  }
+}

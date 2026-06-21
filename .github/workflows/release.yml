@@ -1,0 +1,50 @@
+name: Release
+
+# Publishes to npm via Trusted Publishing (OIDC) — no NPM_TOKEN needed.
+# Provenance attestations are generated automatically. Trigger by pushing a
+# version tag (e.g. v0.1.1) or running the workflow manually.
+#
+# One-time setup on npmjs.com: configure beliq-eu/n8n-nodes-beliq as a Trusted
+# Publisher for the n8n-nodes-beliq package (package Settings -> Publishing
+# access -> GitHub Actions, workflow `release.yml`). The first v0.1.0 release
+# was bootstrapped with a local `npm publish`; every tag from then on flows
+# through here with provenance.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required for npm Trusted Publishing (OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest # Trusted Publishing requires a cloud-hosted runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted Publishing + automatic provenance need npm >= 11.5.1.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Publish to npm
+        run: npm publish

@@ -1,0 +1,297 @@
+{
+  "name": "Order to XRechnung + ZUGFeRD, validated",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1trigger",
+      "name": "When clicking Execute",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// A sample sales order, the kind a webhook or ERP export would deliver.\nreturn [{ json: {\n  orderId: 'SO-1001',\n  currency: 'EUR',\n  buyerLeitwegId: 'LEITWEG-01',\n  supplier: { name: 'Seller GmbH', vatId: 'DE123456789', street: 'Hauptstrasse 1', city: 'Berlin', postalCode: '10115', country: 'DE' },\n  customer: { name: 'Buyer GmbH', vatId: 'DE987654321', street: 'Marktplatz 2', city: 'Munich', postalCode: '80331', country: 'DE' },\n  lines: [\n    { description: 'Consulting services', qty: 10, unit: 'HUR', price: 100, vat: 19 },\n    { description: 'License fee', qty: 1, unit: 'C62', price: 500, vat: 19 },\n  ],\n} }];"
+      },
+      "id": "b2order",
+      "name": "Sample order",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-lines",
+              "leftValue": "={{ $json.lines.length }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "c3validorder",
+      "name": "Valid order?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map the order onto the beliq EN 16931 invoice shape and compute totals.\nconst o = $json;\nconst lines = o.lines.map((l) => ({\n  description: l.description,\n  quantity: l.qty,\n  unitCode: l.unit,\n  unitPrice: l.price,\n  lineTotal: Math.round(l.qty * l.price * 100) / 100,\n  vatRate: l.vat,\n  vatCategoryCode: 'S',\n}));\nconst totalNet = Math.round(lines.reduce((s, l) => s + l.lineTotal, 0) * 100) / 100;\nconst vatRate = lines[0] ? lines[0].vatRate : 0;\nconst totalTax = Math.round(totalNet * vatRate) / 100;\nconst totalGross = Math.round((totalNet + totalTax) * 100) / 100;\nconst invoice = {\n  number: o.orderId.replace('SO-', 'INV-'),\n  issueDate: '2026-01-15',\n  dueDate: '2026-02-14',\n  currencyCode: o.currency,\n  buyerReference: o.buyerLeitwegId,\n  seller: { name: o.supplier.name, vatId: o.supplier.vatId, address: { street: o.supplier.street, city: o.supplier.city, postalCode: o.supplier.postalCode, countryCode: o.supplier.country } },\n  buyer: { name: o.customer.name, vatId: o.customer.vatId, address: { street: o.customer.street, city: o.customer.city, postalCode: o.customer.postalCode, countryCode: o.customer.country } },\n  lines,\n  taxSummary: [{ vatCategoryCode: 'S', vatRate, taxableAmount: totalNet, taxAmount: totalTax }],\n  paymentMeans: { typeCode: '58', iban: 'DE89370400440532013000' },\n  totalNetAmount: totalNet,\n  totalTaxAmount: totalTax,\n  totalGrossAmount: totalGross,\n};\nreturn [{ json: { invoice } }];"
+      },
+      "id": "d4map",
+      "name": "Map to EN 16931",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "generate",
+        "standard": "xrechnung",
+        "output": "xml",
+        "invoice": "={{ $json.invoice }}",
+        "verify": true,
+        "outputField": "data"
+      },
+      "id": "e5genxr",
+      "name": "beliq: generate XRechnung",
+      "type": "n8n-nodes-beliq.beliq",
+      "typeVersion": 1,
+      "position": [
+        720,
+        180
+      ],
+      "credentials": {
+        "beliqApi": {
+          "id": "REPLACE_WITH_YOUR_BELIQ_CREDENTIAL",
+          "name": "beliq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "generate",
+        "standard": "zugferd",
+        "output": "pdf",
+        "facturxProfile": "en16931",
+        "invoice": "={{ $('Map to EN 16931').item.json.invoice }}",
+        "verify": true,
+        "outputField": "data"
+      },
+      "id": "f6genzf",
+      "name": "beliq: generate ZUGFeRD",
+      "type": "n8n-nodes-beliq.beliq",
+      "typeVersion": 1,
+      "position": [
+        720,
+        400
+      ],
+      "credentials": {
+        "beliqApi": {
+          "id": "REPLACE_WITH_YOUR_BELIQ_CREDENTIAL",
+          "name": "beliq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "validate",
+        "inputSource": "binary",
+        "binaryPropertyName": "data",
+        "inputContentType": "application/xml",
+        "validateFormat": "auto"
+      },
+      "id": "g7validate",
+      "name": "beliq: validate",
+      "type": "n8n-nodes-beliq.beliq",
+      "typeVersion": 1,
+      "position": [
+        940,
+        180
+      ],
+      "credentials": {
+        "beliqApi": {
+          "id": "REPLACE_WITH_YOUR_BELIQ_CREDENTIAL",
+          "name": "beliq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "h8compliant",
+      "name": "Compliant?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        180
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "i9deliver",
+      "name": "Deliver: attach to email or store",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1380,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Order to compliant e-invoice, validation-led\n\n1. A sample order is mapped to the beliq EN 16931 invoice shape.\n2. beliq generates an XRechnung (XML) and a hybrid ZUGFeRD (PDF/A-3).\n3. beliq validates the generated document against the authority-pinned, drift-checked rules.\n4. The compliance gate only lets a document through when it is valid.\n\nbeliq generates and validates the compliant document. Transmission (Peppol, PDP, KSeF, SDI), archiving, and tax-authority reporting are separate and remain your access point's job. This flow never sends or files an invoice.\n\nSet up your **beliq API** credential, then run the workflow. Start free at https://beliq.eu",
+        "height": 360,
+        "width": 420
+      },
+      "id": "j10sticky",
+      "name": "How this works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        -120
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking Execute": {
+      "main": [
+        [
+          {
+            "node": "Sample order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample order": {
+      "main": [
+        [
+          {
+            "node": "Valid order?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid order?": {
+      "main": [
+        [
+          {
+            "node": "Map to EN 16931",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Map to EN 16931": {
+      "main": [
+        [
+          {
+            "node": "beliq: generate XRechnung",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "beliq: generate ZUGFeRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "beliq: generate XRechnung": {
+      "main": [
+        [
+          {
+            "node": "beliq: validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "beliq: validate": {
+      "main": [
+        [
+          {
+            "node": "Compliant?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliant?": {
+      "main": [
+        [
+          {
+            "node": "Deliver: attach to email or store",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
