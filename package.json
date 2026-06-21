@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-beliq",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "n8n community node for beliq - generate and validate EU-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS) with authority-pinned, drift-checked rules.",
   "keywords": [
     "n8n-community-node-package",
