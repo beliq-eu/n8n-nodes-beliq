@@ -50,8 +50,4 @@ jobs:
         run: npm test
 
       - name: Publish to npm
-        run: |
-          node --version
-          npm --version
-          echo "id-token url set: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
-          npm publish --loglevel verbose
+        run: npm publish
