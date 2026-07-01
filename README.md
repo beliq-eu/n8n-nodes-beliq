@@ -28,9 +28,13 @@ Create an API key in the beliq dashboard, then add a **beliq API** credential:
 
 The credential test calls `GET /v1/me`, a no-quota check that confirms the key works without consuming your monthly quota.
 
-## Flagship template
+## Example templates
 
-`templates/order-to-xrechnung-zugferd-validate.json` shows a validate-led flow: a sample order is mapped to an EN 16931 invoice, beliq generates an XRechnung and a hybrid ZUGFeRD, beliq validates the result, and a compliance gate guards delivery. Import it from the n8n canvas and run it.
+Import any of these from the n8n canvas (Templates, Import from file), set your **beliq API** credential, and run them:
+
+- `templates/order-to-xrechnung-zugferd-validate.json`: a validate-led flow. A sample order is mapped to an EN 16931 invoice, beliq generates an XRechnung and a hybrid ZUGFeRD, validates the result, and a compliance gate guards delivery.
+- `templates/generate-then-convert-to-ubl.json`: generates an invoice and converts it to UBL, surfacing any `lostElements` from a lossy conversion.
+- `templates/parse-invoice-to-fields.json`: parses a document into a structured invoice and reads out the fields a downstream step needs.
 
 ## Compatibility
 
@@ -48,7 +52,7 @@ BELIQ_API_KEY=blq_xxx npm run test:integration   # hits the live API; draws quot
 
 ## Publishing
 
-Released to npm as [`n8n-nodes-beliq`](https://www.npmjs.com/package/n8n-nodes-beliq). Releases run from `.github/workflows/release.yml` via npm Trusted Publishing (OIDC, with provenance) — push a `v*.*.*` tag to publish a new version. No npm token is stored in the repo.
+Released to npm as [`n8n-nodes-beliq`](https://www.npmjs.com/package/n8n-nodes-beliq). Releases run from `.github/workflows/release.yml` via npm Trusted Publishing (OIDC, with provenance). Push a `v*.*.*` tag to publish a new version. No npm token is stored in the repo.
 
 ## License
 

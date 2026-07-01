@@ -1,0 +1,157 @@
+{
+  "name": "Generate an e-invoice, then convert it to UBL",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "t1trigger",
+      "name": "When clicking Execute",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// A minimal EN 16931-valid invoice, the shape an ERP export would map to.\nconst invoice = {\n  number: 'INV-2001',\n  issueDate: '2026-01-15',\n  dueDate: '2026-02-14',\n  currencyCode: 'EUR',\n  buyerReference: 'LEITWEG-01',\n  seller: { name: 'Seller GmbH', vatId: 'DE123456789', address: { street: 'Hauptstrasse 1', city: 'Berlin', postalCode: '10115', countryCode: 'DE' } },\n  buyer: { name: 'Buyer GmbH', vatId: 'DE987654321', address: { street: 'Marktplatz 2', city: 'Munich', postalCode: '80331', countryCode: 'DE' } },\n  lines: [{ description: 'Consulting services', quantity: 10, unitCode: 'HUR', unitPrice: 100, lineTotal: 1000, vatRate: 19, vatCategoryCode: 'S' }],\n  taxSummary: [{ vatCategoryCode: 'S', vatRate: 19, taxableAmount: 1000, taxAmount: 190 }],\n  paymentMeans: { typeCode: '58', iban: 'DE89370400440532013000' },\n  totalNetAmount: 1000,\n  totalTaxAmount: 190,\n  totalGrossAmount: 1190,\n};\nreturn [{ json: { invoice } }];"
+      },
+      "id": "t2sample",
+      "name": "Sample invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "generate",
+        "standard": "xrechnung",
+        "output": "xml",
+        "invoice": "={{ $json.invoice }}",
+        "verify": true,
+        "outputField": "data"
+      },
+      "id": "t3generate",
+      "name": "beliq: generate XRechnung",
+      "type": "n8n-nodes-beliq.beliq",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "beliqApi": {
+          "id": "REPLACE_WITH_YOUR_BELIQ_CREDENTIAL",
+          "name": "beliq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "convert",
+        "inputSource": "binary",
+        "binaryPropertyName": "data",
+        "inputContentType": "application/xml",
+        "targetFormat": "ubl",
+        "outputField": "data"
+      },
+      "id": "t4convert",
+      "name": "beliq: convert to UBL",
+      "type": "n8n-nodes-beliq.beliq",
+      "typeVersion": 1,
+      "position": [
+        540,
+        300
+      ],
+      "credentials": {
+        "beliqApi": {
+          "id": "REPLACE_WITH_YOUR_BELIQ_CREDENTIAL",
+          "name": "beliq API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "t5deliver",
+      "name": "UBL document ready",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Generate then convert between EN 16931 formats\n\n1. A sample invoice is generated as an XRechnung (CII syntax).\n2. beliq converts it to a UBL document.\n3. The UBL bytes land in the `data` binary field, ready to attach or store.\n\nConvert reports any elements that could not be carried across (`lostElements`, `lostElementsCount`) on the item JSON, so a lossy conversion is never silent.\n\nbeliq produces and converts the compliant document. Transmission (Peppol, PDP, KSeF, SDI), archiving, and reporting stay with your access point. Set up your **beliq API** credential, then run it. Start free at https://beliq.eu",
+        "height": 320,
+        "width": 420
+      },
+      "id": "t6sticky",
+      "name": "How this works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        -60
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking Execute": {
+      "main": [
+        [
+          {
+            "node": "Sample invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample invoice": {
+      "main": [
+        [
+          {
+            "node": "beliq: generate XRechnung",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "beliq: generate XRechnung": {
+      "main": [
+        [
+          {
+            "node": "beliq: convert to UBL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "beliq: convert to UBL": {
+      "main": [
+        [
+          {
+            "node": "UBL document ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

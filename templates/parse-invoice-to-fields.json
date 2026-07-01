@@ -1,0 +1,179 @@
+{
+  "name": "Parse an e-invoice into structured fields",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "p1trigger",
+      "name": "When clicking Execute",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// A minimal EN 16931-valid invoice, the shape an ERP export would map to.\nconst invoice = {\n  number: 'INV-3001',\n  issueDate: '2026-01-15',\n  dueDate: '2026-02-14',\n  currencyCode: 'EUR',\n  buyerReference: 'LEITWEG-01',\n  seller: { name: 'Seller GmbH', vatId: 'DE123456789', address: { street: 'Hauptstrasse 1', city: 'Berlin', postalCode: '10115', countryCode: 'DE' } },\n  buyer: { name: 'Buyer GmbH', vatId: 'DE987654321', address: { street: 'Marktplatz 2', city: 'Munich', postalCode: '80331', countryCode: 'DE' } },\n  lines: [{ description: 'Consulting services', quantity: 10, unitCode: 'HUR', unitPrice: 100, lineTotal: 1000, vatRate: 19, vatCategoryCode: 'S' }],\n  taxSummary: [{ vatCategoryCode: 'S', vatRate: 19, taxableAmount: 1000, taxAmount: 190 }],\n  paymentMeans: { typeCode: '58', iban: 'DE89370400440532013000' },\n  totalNetAmount: 1000,\n  totalTaxAmount: 190,\n  totalGrossAmount: 1190,\n};\nreturn [{ json: { invoice } }];"
+      },
+      "id": "p2sample",
+      "name": "Sample invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "generate",
+        "standard": "xrechnung",
+        "output": "xml",
+        "invoice": "={{ $json.invoice }}",
+        "outputField": "data"
+      },
+      "id": "p3generate",
+      "name": "beliq: generate XRechnung",
+      "type": "n8n-nodes-beliq.beliq",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "beliqApi": {
+          "id": "REPLACE_WITH_YOUR_BELIQ_CREDENTIAL",
+          "name": "beliq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "parse",
+        "inputSource": "binary",
+        "binaryPropertyName": "data",
+        "inputContentType": "application/xml",
+        "parseFormat": "auto"
+      },
+      "id": "p4parse",
+      "name": "beliq: parse",
+      "type": "n8n-nodes-beliq.beliq",
+      "typeVersion": 1,
+      "position": [
+        540,
+        300
+      ],
+      "credentials": {
+        "beliqApi": {
+          "id": "REPLACE_WITH_YOUR_BELIQ_CREDENTIAL",
+          "name": "beliq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// beliq: parse returns the document as a structured invoice on the item JSON.\n// Pull out the fields your downstream step needs; optional chaining keeps this\n// robust if a field is absent on a given document.\nconst inv = $json;\nreturn [{ json: {\n  invoiceNumber: inv.number,\n  currency: inv.currencyCode,\n  sellerName: inv.seller?.name,\n  buyerName: inv.buyer?.name,\n  lineCount: inv.lines?.length,\n  totalGross: inv.totalGrossAmount,\n} }];"
+      },
+      "id": "p5fields",
+      "name": "Read parsed fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "p6done",
+      "name": "Fields ready",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Parse an e-invoice into structured fields\n\n1. A sample invoice is generated as an XRechnung so the flow is runnable on its own.\n2. beliq parses the document into a structured invoice on the item JSON.\n3. A Code node reads the fields a downstream step needs (number, seller, totals).\n\nSwap the first two nodes for a trigger that brings in a real document (a webhook body, a read binary file, an email attachment), then point **beliq: parse** at that binary field.\n\nParsing is read-only: beliq never sends or files the invoice. Set up your **beliq API** credential, then run it. Start free at https://beliq.eu",
+        "height": 340,
+        "width": 420
+      },
+      "id": "p7sticky",
+      "name": "How this works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking Execute": {
+      "main": [
+        [
+          {
+            "node": "Sample invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample invoice": {
+      "main": [
+        [
+          {
+            "node": "beliq: generate XRechnung",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "beliq: generate XRechnung": {
+      "main": [
+        [
+          {
+            "node": "beliq: parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "beliq: parse": {
+      "main": [
+        [
+          {
+            "node": "Read parsed fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read parsed fields": {
+      "main": [
+        [
+          {
+            "node": "Fields ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

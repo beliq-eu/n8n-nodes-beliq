@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "schedule": ["before 3am on Monday"],
+  "timezone": "UTC",
+  "packageRules": [
+    {
+      "description": "Auto-merge patch updates when CI passes",
+      "matchUpdateTypes": ["patch", "digest"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "groupName": "dependency updates (patches)"
+    },
+    {
+      "description": "Group minor updates for review",
+      "matchUpdateTypes": ["minor"],
+      "groupName": "dependency updates (minor)"
+    },
+    {
+      "description": "Keep major updates in a separate group",
+      "matchUpdateTypes": ["major"],
+      "groupName": "dependency updates (major)"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "assignees": ["@me"],
+    "automerge": true
+  }
+}
