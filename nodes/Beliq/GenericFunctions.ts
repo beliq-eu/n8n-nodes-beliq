@@ -214,8 +214,7 @@ export async function beliqApiRequest(
 	this: IExecuteFunctions,
 	request: BeliqRequest,
 ): Promise<{ body: unknown; headers: IDataObject; statusCode: number }> {
-	const credentials = await this.getCredentials('beliqApi');
-	const baseUrl = String(credentials.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
+	const baseUrl = DEFAULT_BASE_URL;
 
 	const options: IHttpRequestOptions = {
 		method: request.method,
