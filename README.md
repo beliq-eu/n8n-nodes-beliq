@@ -24,7 +24,6 @@ The **Advanced (JSON)** field is an escape hatch: its JSON is deep-merged into t
 Create an API key in the beliq dashboard, then add a **beliq API** credential:
 
 - **API Key**: your beliq key.
-- **Base URL**: defaults to `https://api.beliq.eu`. Override only for a self-hosted or staging deployment.
 
 The credential test calls `GET /v1/me`, a no-quota check that confirms the key works without consuming your monthly quota.
 

@@ -22,13 +22,6 @@ export class BeliqApi implements ICredentialType {
 			required: true,
 			description: 'Your beliq API key. Create one in the beliq dashboard under API Keys.',
 		},
-		{
-			displayName: 'Base URL',
-			name: 'baseUrl',
-			type: 'string',
-			default: 'https://api.beliq.eu',
-			description: 'The beliq API base URL. Override only for a self-hosted or staging deployment.',
-		},
 	];
 
 	authenticate: IAuthenticateGeneric = {
@@ -45,7 +38,7 @@ export class BeliqApi implements ICredentialType {
 	// quota and reaches no engine work.
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: '={{$credentials.baseUrl}}',
+			baseURL: 'https://api.beliq.eu',
 			url: '/v1/me',
 			method: 'GET',
 		},
