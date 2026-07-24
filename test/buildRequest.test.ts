@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildRequest, mergeDeep, sniffContentType, type BeliqParams } from '../nodes/Beliq/GenericFunctions';
+import {
+	buildRequest,
+	mergeDeep,
+	resolveGenerateTarget,
+	sniffContentType,
+	type BeliqParams,
+} from '../nodes/Beliq/GenericFunctions';
 
 function gen(overrides: Partial<BeliqParams> = {}): BeliqParams {
 	return {
@@ -48,6 +54,27 @@ describe('buildRequest - generate', () => {
 		const r = buildRequest(gen({ advanced: { pdfTemplateId: 'tpl-1', invoice: { note: 'x' } } }));
 		expect(r.jsonBody).toHaveProperty('pdfTemplateId', 'tpl-1');
 		expect((r.jsonBody!.invoice as Record<string, unknown>)).toEqual({ number: 'INV-1', note: 'x' });
+	});
+
+	it('includes the general profile when set (e.g. NLCIUS)', () => {
+		const r = buildRequest(gen({ standard: 'peppol-bis', profile: 'netherlands-nlcius' }));
+		expect(r.jsonBody).toHaveProperty('profile', 'netherlands-nlcius');
+		// The base generate body carries no profile.
+		expect(buildRequest(gen()).jsonBody).not.toHaveProperty('profile');
+	});
+});
+
+describe('resolveGenerateTarget', () => {
+	it('maps NLCIUS to peppol-bis + the netherlands-nlcius profile (XML)', () => {
+		expect(resolveGenerateTarget('nlcius')).toEqual({
+			standard: 'peppol-bis',
+			profile: 'netherlands-nlcius',
+			output: 'xml',
+		});
+	});
+
+	it('leaves a plain standard unchanged with no forced profile', () => {
+		expect(resolveGenerateTarget('xrechnung')).toEqual({ standard: 'xrechnung' });
 	});
 });
 

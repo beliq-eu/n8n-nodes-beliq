@@ -16,6 +16,7 @@ import {
 	buildRequest,
 	defaultFilename,
 	extractApiErrorMessage,
+	resolveGenerateTarget,
 	sniffContentType,
 	type BeliqOperation,
 	type BeliqParams,
@@ -136,10 +137,11 @@ export class Beliq implements INodeType {
 				name: 'standard',
 				type: 'options',
 				options: [
+					{ name: 'Factur-X', value: 'facturx' },
+					{ name: 'NLCIUS (Netherlands)', value: 'nlcius' },
+					{ name: 'Peppol BIS', value: 'peppol-bis' },
 					{ name: 'XRechnung', value: 'xrechnung' },
 					{ name: 'ZUGFeRD', value: 'zugferd' },
-					{ name: 'Factur-X', value: 'facturx' },
-					{ name: 'Peppol BIS', value: 'peppol-bis' },
 				],
 				default: 'xrechnung',
 				description: 'The e-invoice standard to generate',
@@ -368,11 +370,14 @@ export class Beliq implements INodeType {
 				const params: BeliqParams = { operation };
 
 				if (operation === 'generate') {
-					params.standard = this.getNodeParameter('standard', i) as string;
-					params.output = this.getNodeParameter('output', i) as 'xml' | 'pdf';
+					const target = resolveGenerateTarget(this.getNodeParameter('standard', i) as string);
+					params.standard = target.standard;
+					params.output = target.output ?? (this.getNodeParameter('output', i) as 'xml' | 'pdf');
 					params.invoice = parseJson(this.getNodeParameter('invoice', i)) ?? {};
 					params.verify = this.getNodeParameter('verify', i) as boolean;
-					if (params.standard === 'facturx' || params.standard === 'zugferd') {
+					if (target.profile) {
+						params.profile = target.profile;
+					} else if (target.standard === 'facturx' || target.standard === 'zugferd') {
 						params.facturxProfile = this.getNodeParameter('facturxProfile', i, 'en16931') as string;
 					}
 				} else {

@@ -21,6 +21,8 @@ export interface BeliqParams {
 	// generate (JSON body in, document bytes out)
 	standard?: string;
 	output?: 'xml' | 'pdf';
+	/** General profile (e.g. netherlands-nlcius for NLCIUS); distinct from facturxProfile. */
+	profile?: string;
 	facturxProfile?: string;
 	invoice?: IDataObject;
 	verify?: boolean;
@@ -96,6 +98,24 @@ function compactQuery(query: IDataObject): IDataObject {
  * - validate / parse: raw document bytes in, JSON out.
  * - convert: raw document bytes in, document bytes out.
  */
+export interface GenerateTarget {
+	standard: string;
+	profile?: string;
+	output?: 'xml' | 'pdf';
+}
+
+/**
+ * Resolve a Standard-dropdown value to the generate standard it means. NLCIUS is
+ * a Peppol BIS profile (UBL), not a standalone standard, so it resolves to
+ * peppol-bis + the netherlands-nlcius profile and forces XML output.
+ */
+export function resolveGenerateTarget(standard: string): GenerateTarget {
+	if (standard === 'nlcius') {
+		return { standard: 'peppol-bis', profile: 'netherlands-nlcius', output: 'xml' };
+	}
+	return { standard };
+}
+
 export function buildRequest(params: BeliqParams): BeliqRequest {
 	switch (params.operation) {
 		case 'generate': {
@@ -104,7 +124,9 @@ export function buildRequest(params: BeliqParams): BeliqRequest {
 				output: params.output ?? 'xml',
 				invoice: params.invoice ?? {},
 			};
-			// Profile only applies to the Factur-X / ZUGFeRD family.
+			// General profile (e.g. netherlands-nlcius for NLCIUS on Peppol BIS).
+			if (params.profile) body.profile = params.profile;
+			// Factur-X profile applies only to the Factur-X / ZUGFeRD family.
 			if (
 				params.facturxProfile &&
 				(params.standard === 'facturx' || params.standard === 'zugferd')
