@@ -44,9 +44,14 @@ run('beliq live API', () => {
 					dueDate: '2026-02-14',
 					currencyCode: 'EUR',
 					buyerReference: 'LEITWEG-01',
+					// XRechnung's BR-DE-* rules require seller contact (BG-6) and
+					// payment instructions (BG-16) on top of plain EN 16931.
 					seller: {
 						name: 'Seller GmbH',
 						vatId: 'DE123456789',
+						contactName: 'Anna Muster',
+						email: 'billing@seller.example',
+						phone: '+49 30 1234567',
 						address: { street: 'Hauptstrasse 1', city: 'Berlin', postalCode: '10115', countryCode: 'DE' },
 					},
 					buyer: {
@@ -58,6 +63,8 @@ run('beliq live API', () => {
 						{ description: 'Consulting', quantity: 10, unitCode: 'HUR', unitPrice: 100, lineTotal: 1000, vatRate: 19, vatCategoryCode: 'S' },
 					],
 					taxSummary: [{ vatCategoryCode: 'S', vatRate: 19, taxableAmount: 1000, taxAmount: 190 }],
+					paymentMeans: { typeCode: '58', iban: 'DE89370400440532013000' },
+					paymentTerms: 'Payable within 30 days.',
 					totalNetAmount: 1000,
 					totalTaxAmount: 190,
 					totalGrossAmount: 1190,
