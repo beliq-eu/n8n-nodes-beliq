@@ -47,7 +47,9 @@ run('beliq live API', () => {
 					seller: {
 						name: 'Seller GmbH',
 						vatId: 'DE123456789',
+						contactName: 'Anna Muster',
 						email: 'billing@seller.example',
+						phone: '+49 30 1234567',
 						address: { street: 'Hauptstrasse 1', city: 'Berlin', postalCode: '10115', countryCode: 'DE' },
 					},
 					buyer: {
@@ -60,6 +62,7 @@ run('beliq live API', () => {
 						{ description: 'Consulting', quantity: 10, unitCode: 'HUR', unitPrice: 100, lineTotal: 1000, vatRate: 19, vatCategoryCode: 'S' },
 					],
 					taxSummary: [{ vatCategoryCode: 'S', vatRate: 19, taxableAmount: 1000, taxAmount: 190 }],
+					paymentMeans: { typeCode: '58', iban: 'DE89370400440532013000' },
 					totalNetAmount: 1000,
 					totalTaxAmount: 190,
 					totalGrossAmount: 1190,
