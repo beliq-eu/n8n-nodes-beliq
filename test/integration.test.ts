@@ -69,9 +69,12 @@ run('beliq live API', () => {
 				},
 			}),
 		);
-		// A bare "expected 422 to be 200" discards the validation report, which
-		// is the only place the failing rule is named.
-		expect(res.status, res.status === 200 ? '' : res.bytes.toString('utf8').slice(0, 4000)).toBe(200);
+		// A bare "expected 422 to be 200" discards the API's report, which is the
+		// only place the failing rule is named. expect()'s message argument does
+		// not reliably reach the reporter, so throw with the body instead.
+		if (res.status !== 200) {
+			throw new Error(`generate returned ${res.status}: ${res.bytes.toString('utf8').slice(0, 4000)}`);
+		}
 		expect(res.headers.get('content-type')).toContain('application/xml');
 		expect(res.headers.get('x-schematron-version')).toBeTruthy();
 		xrechnungXml = res.bytes;
