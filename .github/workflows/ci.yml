@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # test:integration calls the real beliq API and spends one quota unit per
+      # call, so it is opt-in. vitest skips the block on its own when
+      # BELIQ_API_KEY is unset, which reads as a pass; the guard makes the
+      # difference between "ran" and "skipped" visible in the job log.
+      - id: guard
+        run: echo "has_key=${{ secrets.BELIQ_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: steps.guard.outputs.has_key == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.guard.outputs.has_key == 'true'
+        run: npm ci
+
+      - name: Live API smoke test
+        if: steps.guard.outputs.has_key == 'true'
+        env:
+          BELIQ_API_KEY: ${{ secrets.BELIQ_API_KEY }}
+        run: npm run test:integration
+
+      - name: Skipped notice
+        if: steps.guard.outputs.has_key != 'true'
+        run: echo "BELIQ_API_KEY secret not set; skipping the live API smoke test."
