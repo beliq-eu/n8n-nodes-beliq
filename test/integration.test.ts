@@ -71,7 +71,9 @@ run('beliq live API', () => {
 				},
 			}),
 		);
-		expect(res.status).toBe(200);
+		// A bare "expected 422 to be 200" hides the rule the API named, and the
+		// live suite is the only place that report exists.
+		expect(res.status, res.status === 200 ? '' : res.bytes.toString('utf8').slice(0, 4000)).toBe(200);
 		expect(res.headers.get('content-type')).toContain('application/xml');
 		expect(res.headers.get('x-schematron-version')).toBeTruthy();
 		xrechnungXml = res.bytes;
