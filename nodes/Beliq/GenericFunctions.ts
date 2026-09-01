@@ -7,6 +7,16 @@ import type {
 
 export const DEFAULT_BASE_URL = 'https://api.beliq.eu';
 
+/**
+ * Per-request deadline, matching the beliq SDKs. Generous on purpose: a generate
+ * with `verify` runs a full Schematron pass server-side, and a client that gives
+ * up first abandons work that is still running without learning whether the
+ * document was produced. Without it the request falls back to n8n's global axios
+ * default of 300s, which strands a workflow execution for five minutes on a
+ * black-holed host.
+ */
+export const REQUEST_TIMEOUT_MS = 90_000;
+
 export type BeliqOperation = 'generate' | 'validate' | 'parse' | 'convert';
 
 /** Raw-input ops (validate/parse/convert) read the document from a binary field or pasted text. */
@@ -244,6 +254,7 @@ export async function beliqApiRequest(
 		headers: { 'Content-Type': request.contentType },
 		qs: request.query,
 		returnFullResponse: true,
+		timeout: REQUEST_TIMEOUT_MS,
 	};
 
 	if (request.outputKind === 'binary') {
