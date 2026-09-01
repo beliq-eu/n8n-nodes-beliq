@@ -12,6 +12,16 @@ const run = apiKey ? describe : describe.skip;
 // measured 5004ms against the deployed engine, and convert 4445ms.
 const LIVE_CALL_TIMEOUT_MS = 30_000;
 
+// A spent monthly quota means the contract could not be checked, not that it is
+// broken. Failing on it would block every merge for the rest of the month, so
+// it joins the same "could not run" arm as a missing key: the suite stops and
+// says so, loudly enough to show on the run summary.
+let quotaExhausted = false;
+
+function isQuotaExhausted(status: number, bytes: Buffer): boolean {
+	return status === 429 && bytes.toString('utf8').includes('QUOTA_EXCEEDED');
+}
+
 async function send(req: BeliqRequest): Promise<{ status: number; headers: Headers; bytes: Buffer }> {
 	const qs = req.query
 		? '?' +
@@ -73,6 +83,13 @@ run('beliq live API', () => {
 				},
 			}),
 		);
+		if (isQuotaExhausted(res.status, res.bytes)) {
+			quotaExhausted = true;
+			console.warn(
+				'::warning::beliq API monthly quota is spent, so the live contract was NOT verified by this run.',
+			);
+			return;
+		}
 		// A bare "expected 422 to be 200" discards the API's report, which is the
 		// only place the failing rule is named. expect()'s message argument does
 		// not reliably reach the reporter, so throw with the body instead.
@@ -85,7 +102,8 @@ run('beliq live API', () => {
 		expect(xrechnungXml.toString('utf8').trimStart().startsWith('<')).toBe(true);
 	}, LIVE_CALL_TIMEOUT_MS);
 
-	it('validates the generated XRechnung', async () => {
+	it('validates the generated XRechnung', async (ctx) => {
+		if (quotaExhausted) ctx.skip();
 		const res = await send(
 			buildRequest({ operation: 'validate', rawBody: xrechnungXml, rawContentType: 'application/xml', validateFormat: 'auto' }),
 		);
@@ -94,7 +112,8 @@ run('beliq live API', () => {
 		expect(typeof json.data.valid).toBe('boolean');
 	}, LIVE_CALL_TIMEOUT_MS);
 
-	it('parses the generated XRechnung', async () => {
+	it('parses the generated XRechnung', async (ctx) => {
+		if (quotaExhausted) ctx.skip();
 		const res = await send(
 			buildRequest({ operation: 'parse', rawBody: xrechnungXml, rawContentType: 'application/xml', parseFormat: 'auto' }),
 		);
@@ -103,7 +122,8 @@ run('beliq live API', () => {
 		expect(json.data.format).toBeDefined();
 	}, LIVE_CALL_TIMEOUT_MS);
 
-	it('converts the generated XRechnung to UBL', async () => {
+	it('converts the generated XRechnung to UBL', async (ctx) => {
+		if (quotaExhausted) ctx.skip();
 		const res = await send(
 			buildRequest({ operation: 'convert', rawBody: xrechnungXml, rawContentType: 'application/xml', sourceFormat: 'auto', targetFormat: 'ubl' }),
 		);
