@@ -8,6 +8,10 @@ const apiKey = process.env.BELIQ_API_KEY;
 const baseUrl = (process.env.BELIQ_BASE_URL ?? 'https://api.beliq.eu').replace(/\/+$/, '');
 const run = apiKey ? describe : describe.skip;
 
+// Live Schematron validation runs past vitest's 5s default: the validate call
+// measured 5004ms against the deployed engine, and convert 4445ms.
+const LIVE_CALL_TIMEOUT_MS = 30_000;
+
 async function send(req: BeliqRequest): Promise<{ status: number; headers: Headers; bytes: Buffer }> {
 	const qs = req.query
 		? '?' +
@@ -47,29 +51,39 @@ run('beliq live API', () => {
 					seller: {
 						name: 'Seller GmbH',
 						vatId: 'DE123456789',
+						contactName: 'Anna Muster',
+						email: 'billing@seller.example',
+						phone: '+49 30 1234567',
 						address: { street: 'Hauptstrasse 1', city: 'Berlin', postalCode: '10115', countryCode: 'DE' },
 					},
 					buyer: {
 						name: 'Buyer GmbH',
 						vatId: 'DE987654321',
+						email: 'ap@buyer.example',
 						address: { street: 'Marktplatz 2', city: 'Munich', postalCode: '80331', countryCode: 'DE' },
 					},
 					lines: [
 						{ description: 'Consulting', quantity: 10, unitCode: 'HUR', unitPrice: 100, lineTotal: 1000, vatRate: 19, vatCategoryCode: 'S' },
 					],
 					taxSummary: [{ vatCategoryCode: 'S', vatRate: 19, taxableAmount: 1000, taxAmount: 190 }],
+					paymentMeans: { typeCode: '58', iban: 'DE89370400440532013000' },
 					totalNetAmount: 1000,
 					totalTaxAmount: 190,
 					totalGrossAmount: 1190,
 				},
 			}),
 		);
-		expect(res.status).toBe(200);
+		// A bare "expected 422 to be 200" discards the API's report, which is the
+		// only place the failing rule is named. expect()'s message argument does
+		// not reliably reach the reporter, so throw with the body instead.
+		if (res.status !== 200) {
+			throw new Error(`generate returned ${res.status}: ${res.bytes.toString('utf8').slice(0, 4000)}`);
+		}
 		expect(res.headers.get('content-type')).toContain('application/xml');
 		expect(res.headers.get('x-schematron-version')).toBeTruthy();
 		xrechnungXml = res.bytes;
 		expect(xrechnungXml.toString('utf8').trimStart().startsWith('<')).toBe(true);
-	});
+	}, LIVE_CALL_TIMEOUT_MS);
 
 	it('validates the generated XRechnung', async () => {
 		const res = await send(
@@ -78,7 +92,7 @@ run('beliq live API', () => {
 		expect(res.status).toBe(200);
 		const json = JSON.parse(res.bytes.toString('utf8'));
 		expect(typeof json.data.valid).toBe('boolean');
-	});
+	}, LIVE_CALL_TIMEOUT_MS);
 
 	it('parses the generated XRechnung', async () => {
 		const res = await send(
@@ -87,7 +101,7 @@ run('beliq live API', () => {
 		expect(res.status).toBe(200);
 		const json = JSON.parse(res.bytes.toString('utf8'));
 		expect(json.data.format).toBeDefined();
-	});
+	}, LIVE_CALL_TIMEOUT_MS);
 
 	it('converts the generated XRechnung to UBL', async () => {
 		const res = await send(
@@ -96,5 +110,5 @@ run('beliq live API', () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get('x-target-format')).toBe('ubl');
 		expect(res.bytes.length).toBeGreaterThan(0);
-	});
+	}, LIVE_CALL_TIMEOUT_MS);
 });
