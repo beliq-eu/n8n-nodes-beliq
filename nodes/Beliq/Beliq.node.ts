@@ -38,6 +38,9 @@ const DEFAULT_INVOICE = JSON.stringify(
 		seller: {
 			name: 'Seller GmbH',
 			vatId: 'DE123456789',
+			contactName: 'Anna Muster',
+			email: 'billing@seller.example',
+			phone: '+49 30 1234567',
 			address: { street: 'Hauptstrasse 1', city: 'Berlin', postalCode: '10115', countryCode: 'DE' },
 		},
 		buyer: {
