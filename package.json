@@ -64,6 +64,6 @@
     "n8n-workflow": "*",
     "prettier": "^3.3.3",
     "typescript": "^5.5.4",
-    "vitest": "^3.0.0"
+    "vitest": "^4.0.0"
   }
 }
