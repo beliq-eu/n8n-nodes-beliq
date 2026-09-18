@@ -126,6 +126,19 @@ export function resolveGenerateTarget(standard: string): GenerateTarget {
 	return { standard };
 }
 
+/**
+ * The Factur-X profiles each hybrid standard accepts. The engine pins `profile`
+ * per standard and answers a pair outside its table with 422
+ * PROFILE_STANDARD_MISMATCH: `extended-ctc-fr` is the AFNOR France CTC overlay
+ * and has no ZUGFeRD counterpart. A copy of the Factur-X half of the SDK's
+ * LIVE_PROFILES_BY_STANDARD, because this node ships no runtime dependencies;
+ * test/buildRequest.test.ts pins the two dropdowns to it.
+ */
+export const FACTURX_PROFILES_BY_STANDARD: Readonly<Record<string, readonly string[]>> = {
+	facturx: ['basicwl', 'en16931', 'extended', 'extended-ctc-fr'],
+	zugferd: ['basicwl', 'en16931', 'extended'],
+};
+
 export function buildRequest(params: BeliqParams): BeliqRequest {
 	switch (params.operation) {
 		case 'generate': {
@@ -136,10 +149,13 @@ export function buildRequest(params: BeliqParams): BeliqRequest {
 			};
 			// General profile (e.g. netherlands-nlcius for NLCIUS on Peppol BIS).
 			if (params.profile) body.profile = params.profile;
-			// Factur-X profile applies only to the Factur-X / ZUGFeRD family.
+			// Factur-X profile applies only to the Factur-X / ZUGFeRD family, and
+			// only when that standard accepts it. The dropdown narrows per standard,
+			// but a workflow saved before it did, or one whose Standard was switched
+			// after the profile was picked, still carries the old value.
 			if (
 				params.facturxProfile &&
-				(params.standard === 'facturx' || params.standard === 'zugferd')
+				FACTURX_PROFILES_BY_STANDARD[params.standard ?? '']?.includes(params.facturxProfile)
 			) {
 				body.facturxProfile = params.facturxProfile;
 			}

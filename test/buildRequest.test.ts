@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { Beliq } from '../nodes/Beliq/Beliq.node';
 import {
 	buildRequest,
+	FACTURX_PROFILES_BY_STANDARD,
 	mergeDeep,
 	resolveGenerateTarget,
 	sniffContentType,
@@ -48,6 +50,33 @@ describe('buildRequest - generate', () => {
 		// Profile ignored when the standard is not facturx/zugferd.
 		expect(buildRequest(gen({ standard: 'xrechnung', facturxProfile: 'en16931' })).jsonBody)
 			.not.toHaveProperty('facturxProfile');
+	});
+
+	// extended-ctc-fr is Factur-X only; the engine answers it on ZUGFeRD with 422
+	// PROFILE_STANDARD_MISMATCH. A workflow saved before the dropdown split, or
+	// one whose Standard was switched afterwards, can still carry it.
+	it('drops a Factur-X profile the standard rejects', () => {
+		expect(
+			buildRequest(gen({ standard: 'zugferd', output: 'pdf', facturxProfile: 'extended-ctc-fr' })).jsonBody,
+		).not.toHaveProperty('facturxProfile');
+		expect(
+			buildRequest(gen({ standard: 'facturx', output: 'pdf', facturxProfile: 'extended-ctc-fr' })).jsonBody,
+		).toHaveProperty('facturxProfile', 'extended-ctc-fr');
+	});
+
+	// The node ships no runtime dependencies, so the table is a local copy. This
+	// ties each generate dropdown to it, so the two cannot disagree.
+	it('offers each standard exactly the profiles the table accepts', () => {
+		const fields = new Beliq().description.properties.filter(
+			(p) => p.name === 'facturxProfile' && p.displayOptions?.show?.operation?.includes('generate'),
+		);
+		const byStandard: Record<string, string[]> = {};
+		for (const field of fields) {
+			for (const standard of (field.displayOptions?.show?.standard ?? []) as string[]) {
+				byStandard[standard] = (field.options as { value: string }[]).map((o) => o.value);
+			}
+		}
+		expect(byStandard).toEqual(FACTURX_PROFILES_BY_STANDARD);
 	});
 
 	it('deep-merges advanced JSON into the body (advanced wins)', () => {
