@@ -144,6 +144,12 @@ export function buildRequest(params: BeliqParams): BeliqRequest {
 				body.facturxProfile = params.facturxProfile;
 			}
 			if (typeof params.verify === 'boolean') body.verify = params.verify;
+			// XRechnung and Peppol BIS have no hybrid PDF, and the API refuses PDF
+			// for them unless the request names a visual to render. Factur-X and
+			// ZUGFeRD render theirs either way, so this is inert for them. A
+			// pdfTemplateId in `advanced` still wins: the API renders a stored
+			// template ahead of the built-in default.
+			if (body.output === 'pdf') body.template = 'standard';
 
 			const merged =
 				params.advanced && Object.keys(params.advanced).length > 0

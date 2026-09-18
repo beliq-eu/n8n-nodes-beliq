@@ -10,7 +10,7 @@ In n8n, go to **Settings -> Community Nodes -> Install** and enter `n8n-nodes-be
 
 ## Operations
 
-- **Generate**: build a compliant document from an EN 16931 invoice object. Returns the XML, or a hybrid PDF/A-3 with the XML embedded, as binary data plus the Schematron version used.
+- **Generate**: build a compliant document from an EN 16931 invoice object. Returns the XML, or a PDF, as binary data plus the Schematron version used. Factur-X and ZUGFeRD return a hybrid PDF/A-3 with the XML embedded; XRechnung and Peppol BIS have no hybrid form, so they return a visualization with no XML inside it and their legal document stays the XML.
 - **Validate**: check an XML or PDF invoice against the authority-pinned rules. Returns the validation result (valid flag, errors, warnings, rule and ruleset versions).
 - **Parse**: extract a structured invoice object from an XML or PDF document.
 - **Convert**: convert a document between formats (for example CII to UBL, or UBL to ZUGFeRD). Returns the converted document as binary data plus conversion metadata (source and target format, profile detected, lost elements, tools used).

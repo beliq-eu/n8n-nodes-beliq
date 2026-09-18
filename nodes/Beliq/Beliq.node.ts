@@ -154,12 +154,16 @@ export class Beliq implements INodeType {
 				displayName: 'Output',
 				name: 'output',
 				type: 'options',
+				// "PDF" without a qualifier: whether it is a hybrid PDF/A-3 or a
+				// visualization with no embedded XML depends on the chosen standard,
+				// which a static label cannot say. The description carries that.
 				options: [
+					{ name: 'PDF', value: 'pdf' },
 					{ name: 'XML', value: 'xml' },
-					{ name: 'PDF (Hybrid)', value: 'pdf' },
 				],
 				default: 'xml',
-				description: 'XML for a pure e-invoice, or a hybrid PDF/A-3 with the XML embedded',
+				description:
+					'XML returns the invoice as text. PDF returns a hybrid PDF/A-3 with the XML embedded for Factur-X and ZUGFeRD. XRechnung and Peppol BIS have no hybrid form, so PDF returns a visualization with no XML inside it, and their legal document stays the XML.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
 			{
