@@ -166,6 +166,9 @@ export class Beliq implements INodeType {
 					'XML returns the invoice as text. PDF returns a hybrid PDF/A-3 with the XML embedded for Factur-X and ZUGFeRD. XRechnung and Peppol BIS have no hybrid form, so PDF returns a visualization with no XML inside it, and their legal document stays the XML.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
+			// One field per standard, so each lists only the profiles it accepts.
+			// EXTENDED CTC FR is Factur-X only; the engine answers it on ZUGFeRD
+			// with 422 PROFILE_STANDARD_MISMATCH.
 			{
 				displayName: 'Factur-X Profile',
 				name: 'facturxProfile',
@@ -177,8 +180,21 @@ export class Beliq implements INodeType {
 					{ name: 'EXTENDED CTC FR', value: 'extended-ctc-fr' },
 				],
 				default: 'en16931',
-				description: 'The Factur-X / ZUGFeRD profile to apply',
-				displayOptions: { show: { operation: ['generate'], standard: ['facturx', 'zugferd'] } },
+				description: 'The Factur-X profile to apply',
+				displayOptions: { show: { operation: ['generate'], standard: ['facturx'] } },
+			},
+			{
+				displayName: 'ZUGFeRD Profile',
+				name: 'facturxProfile',
+				type: 'options',
+				options: [
+					{ name: 'BASIC WL', value: 'basicwl' },
+					{ name: 'EN 16931', value: 'en16931' },
+					{ name: 'EXTENDED', value: 'extended' },
+				],
+				default: 'en16931',
+				description: 'The ZUGFeRD profile to apply',
+				displayOptions: { show: { operation: ['generate'], standard: ['zugferd'] } },
 			},
 			{
 				displayName: 'Invoice (JSON)',
