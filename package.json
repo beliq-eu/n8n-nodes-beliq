@@ -35,6 +35,7 @@
     "dev": "tsc --watch",
     "lint": "eslint nodes credentials package.json",
     "lintfix": "eslint nodes credentials package.json --fix",
+    "scrub:check": "bash scripts/scrub-check.sh",
     "test": "vitest run --exclude test/integration.test.ts",
     "test:integration": "vitest run test/integration.test.ts"
   },
