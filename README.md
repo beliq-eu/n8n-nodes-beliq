@@ -45,6 +45,7 @@ Requires n8n with `n8nNodesApiVersion: 1` and Node.js >= 20.15.
 npm install
 npm run build      # tsc + copy icons into dist
 npm run lint
+npm run scrub:check   # no em-dash in any tracked file
 npm test           # unit tests (no network)
 BELIQ_API_KEY=blq_xxx npm run test:integration   # hits the live API; draws quota
 ```
