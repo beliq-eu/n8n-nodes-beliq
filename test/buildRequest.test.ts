@@ -62,6 +62,35 @@ describe('buildRequest - generate', () => {
 		// The base generate body carries no profile.
 		expect(buildRequest(gen()).jsonBody).not.toHaveProperty('profile');
 	});
+
+	// PDF output on an XML-only standard is a hard 400 unless the request names a
+	// visual to render, and the node exposes no other way to ask for one.
+	it('asks for the default visual on PDF output', () => {
+		expect(buildRequest(gen({ standard: 'xrechnung', output: 'pdf' })).jsonBody).toHaveProperty(
+			'template',
+			'standard',
+		);
+		expect(buildRequest(gen({ standard: 'zugferd', output: 'pdf' })).jsonBody).toHaveProperty(
+			'template',
+			'standard',
+		);
+	});
+
+	it('asks for no visual on XML output', () => {
+		expect(buildRequest(gen({ output: 'xml' })).jsonBody).not.toHaveProperty('template');
+		// An absent output defaults to xml, so it must not ask for one either.
+		expect(buildRequest(gen({ output: undefined })).jsonBody).not.toHaveProperty('template');
+	});
+
+	// The default visual is set before the merge, so a caller who names a stored
+	// template through Advanced keeps it; the API renders that one instead.
+	it('lets Advanced carry a stored template alongside the default', () => {
+		const r = buildRequest(
+			gen({ output: 'pdf', advanced: { pdfTemplateId: 'k3d-9mp' } }),
+		);
+		expect(r.jsonBody).toHaveProperty('pdfTemplateId', 'k3d-9mp');
+		expect(r.jsonBody).toHaveProperty('template', 'standard');
+	});
 });
 
 describe('resolveGenerateTarget', () => {
