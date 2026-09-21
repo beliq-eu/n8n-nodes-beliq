@@ -73,7 +73,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// beliq: parse returns the document as a structured invoice on the item JSON.\n// Pull out the fields your downstream step needs; optional chaining keeps this\n// robust if a field is absent on a given document.\nconst inv = $json;\nreturn [{ json: {\n  invoiceNumber: inv.number,\n  currency: inv.currencyCode,\n  sellerName: inv.seller?.name,\n  buyerName: inv.buyer?.name,\n  lineCount: inv.lines?.length,\n  totalGross: inv.totalGrossAmount,\n} }];"
+        "jsCode": "// beliq: parse answers with the invoice nested under `invoice`, alongside the\n// detected `format` and `profileDetected`. Read the fields your downstream step\n// needs off that object; optional chaining keeps this robust if a field is\n// absent on a given document.\nconst inv = $json.invoice;\nreturn [{ json: {\n  invoiceNumber: inv.number,\n  currency: inv.currencyCode,\n  sellerName: inv.seller?.name,\n  buyerName: inv.buyer?.name,\n  lineCount: inv.lines?.length,\n  totalGross: inv.totalGrossAmount,\n} }];"
       },
       "id": "p5fields",
       "name": "Read parsed fields",
