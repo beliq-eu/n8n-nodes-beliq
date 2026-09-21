@@ -98,3 +98,56 @@ describe('the shipped templates', () => {
 		expectAcceptedByXrechnung(mapped.json.invoice as Invoice);
 	});
 });
+
+describe('the parse template reads the fields the node actually emits', () => {
+	// A parse item's JSON is not the invoice. `POST /v1/parse` answers
+	// `{ success, data: { format, profileDetected, invoice } }`, and the node hands
+	// `data` to the item, so the invoice sits one level down under `invoice`.
+	// Reading `$json.number` instead of `$json.invoice.number` yields `undefined`
+	// for every field and the template still "runs", which is why this is asserted
+	// rather than eyeballed.
+	const parseResponse = {
+		success: true,
+		data: {
+			format: 'cii',
+			profileDetected: 'xrechnung_3.0',
+			invoice: {
+				number: 'INV-3001',
+				currencyCode: 'EUR',
+				seller: { name: 'Seller GmbH' },
+				buyer: { name: 'Buyer GmbH' },
+				lines: [{ description: 'Consulting services' }],
+				totalGrossAmount: 1190,
+			},
+		},
+	};
+
+	/** The unwrap from Beliq.node.ts, applied to a JSON response. */
+	const itemJson = (response: { data?: unknown }) => response.data ?? response;
+
+	it('still matches how the node unwraps a JSON response', () => {
+		// If this fails the node changed where it puts the payload, and the
+		// template's field paths have to be re-derived before this suite is trusted.
+		const source = readFileSync(new URL('../nodes/Beliq/Beliq.node.ts', import.meta.url), 'utf8');
+		expect(source).toContain('(parsed.data as IDataObject) ?? parsed');
+	});
+
+	it('reads every field off the parsed invoice, not off the envelope', () => {
+		const [item] = runCodeNode(
+			codeOf(template('parse-invoice-to-fields'), 'Read parsed fields'),
+			itemJson(parseResponse),
+		);
+
+		expect(item.json).toEqual({
+			invoiceNumber: 'INV-3001',
+			currency: 'EUR',
+			sellerName: 'Seller GmbH',
+			buyerName: 'Buyer GmbH',
+			lineCount: 1,
+			totalGross: 1190,
+		});
+		// Spelled out because `toEqual` above would also pass on an all-undefined
+		// object if the expectation were ever loosened to a subset match.
+		for (const value of Object.values(item.json)) expect(value).toBeDefined();
+	});
+});
