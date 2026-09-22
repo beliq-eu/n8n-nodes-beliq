@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>beliq-eu/.github"],
+  "extends": ["local>beliq-eu/.github:automerge"],
   "packageRules": [
     {
       "description": "The nanoid override lifts the dev tree above GHSA-2v37-7h3g-55p8. Both consumers are on the 3.x line: @n8n/utils (through n8n-workflow) pins exactly 3.3.8, and postcss (through vite) asks for ^3.3.17 and loads it with require(). nanoid 4 and later are ESM-only, and 6 requires node 22 or later while this repo supports node >=20.15. No CI step reaches either consumer, so a major bump shows green. Lift once both accept a newer major.",
