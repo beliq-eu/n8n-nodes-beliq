@@ -163,7 +163,7 @@ export class Beliq implements INodeType {
 				],
 				default: 'xml',
 				description:
-					'XML returns the invoice as text. PDF returns a hybrid PDF/A-3 with the XML embedded for Factur-X and ZUGFeRD. XRechnung and Peppol BIS have no hybrid form, so PDF returns a visualization with no XML inside it, and their legal document stays the XML.',
+					'XML returns the invoice as text. PDF returns a hybrid PDF/A-3 with the XML embedded for Factur-X and ZUGFeRD. XRechnung and Peppol BIS have no hybrid form, so PDF returns a visualization with no XML inside it, and their legal document stays the XML. NLCIUS always returns XML, whatever this field says.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
 			// One field per standard, so each lists only the profiles it accepts.

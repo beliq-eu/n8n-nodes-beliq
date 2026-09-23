@@ -131,6 +131,20 @@ describe('resolveGenerateTarget', () => {
 		});
 	});
 
+	// A standard that forces its output wins over the Output field, so that field
+	// has to say so, or the user's choice is dropped without a word.
+	it('names every standard that overrides Output in the Output description', () => {
+		const properties = new Beliq().description.properties;
+		const standard = properties.find((p) => p.name === 'standard');
+		const output = properties.find((p) => p.name === 'output');
+		const forcing = (standard!.options as { name: string; value: string }[]).flatMap((o) => {
+			const forced = resolveGenerateTarget(o.value).output;
+			return forced ? [`${o.name.split(' (')[0]} always returns ${forced.toUpperCase()}`] : [];
+		});
+		expect(forcing).toEqual(['NLCIUS always returns XML']);
+		for (const sentence of forcing) expect(output!.description).toContain(sentence);
+	});
+
 	it('leaves a plain standard unchanged with no forced profile', () => {
 		expect(resolveGenerateTarget('xrechnung')).toEqual({ standard: 'xrechnung' });
 	});
