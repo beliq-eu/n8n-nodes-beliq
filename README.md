@@ -17,7 +17,7 @@ In n8n, go to **Settings -> Community Nodes -> Install** and enter `n8n-nodes-be
 
 Each operation reads input either from a binary field (for example the output of a previous node, or an HTTP download) or from pasted text, and writes document output to a binary field you name.
 
-The **Advanced (JSON)** field is an escape hatch: its JSON is deep-merged into the request body (Generate) or query (Validate, Parse, Convert), so any API option not surfaced as a control is still reachable.
+The **Advanced (JSON)** field is an escape hatch for options that have no control of their own. Its JSON is deep-merged into the request body for Generate and into the query string for Validate, Parse and Convert, so any body field of `POST /v1/generate` and any query parameter of the other three endpoints is reachable through it. Request headers are not. The node sets only `Content-Type` itself and the credential adds `Authorization`, with no way to add another header, so the `Beliq-Ruleset` header of `POST /v1/validate` (which pins the validation ruleset) cannot be set from this node. A `Beliq-Ruleset` key in Advanced (JSON) is sent as a query parameter, not as the header.
 
 ## Credentials
 
@@ -29,11 +29,11 @@ The credential test calls `GET /v1/me`, a no-quota check that confirms the key w
 
 ## Example templates
 
-Import any of these from the n8n canvas (Templates, Import from file), set your **beliq API** credential, and run them:
+Import any of these from the n8n canvas (Templates, Import from file), set your **beliq API** credential, and run them. They are in the GitHub repository, not in the npm package:
 
-- `templates/order-to-xrechnung-zugferd-validate.json`: a validate-led flow. A sample order is mapped to an EN 16931 invoice, beliq generates an XRechnung and a hybrid ZUGFeRD, validates the result, and a compliance gate guards delivery.
-- `templates/generate-then-convert-to-ubl.json`: generates an invoice and converts it to UBL, surfacing any `lostElements` from a lossy conversion.
-- `templates/parse-invoice-to-fields.json`: parses a document into a structured invoice and reads out the fields a downstream step needs.
+- [`templates/order-to-xrechnung-zugferd-validate.json`](https://github.com/beliq-eu/n8n-nodes-beliq/blob/main/templates/order-to-xrechnung-zugferd-validate.json): a validate-led flow. A sample order is mapped to an EN 16931 invoice, beliq generates an XRechnung and a hybrid ZUGFeRD, validates the result, and a compliance gate guards delivery.
+- [`templates/generate-then-convert-to-ubl.json`](https://github.com/beliq-eu/n8n-nodes-beliq/blob/main/templates/generate-then-convert-to-ubl.json): generates an invoice and converts it to UBL, surfacing any `lostElements` from a lossy conversion.
+- [`templates/parse-invoice-to-fields.json`](https://github.com/beliq-eu/n8n-nodes-beliq/blob/main/templates/parse-invoice-to-fields.json): parses a document into a structured invoice and reads out the fields a downstream step needs.
 
 ## Compatibility
 

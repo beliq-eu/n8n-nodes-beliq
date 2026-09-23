@@ -378,7 +378,7 @@ export class Beliq implements INodeType {
 				type: 'json',
 				default: '{}',
 				description:
-					'Raw JSON deep-merged into the request body (Generate) or query (Validate, Parse, Convert) for any option not exposed above',
+					'Raw JSON deep-merged into the request body (Generate) or query string (Validate, Parse, Convert), for body fields and query parameters that have no control above. Request headers such as Beliq-Ruleset cannot be set here.',
 			},
 		],
 	};
