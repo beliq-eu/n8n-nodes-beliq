@@ -12,6 +12,15 @@ const run = apiKey ? describe : describe.skip;
 // measured 5004ms against the deployed engine, and convert 4445ms.
 const LIVE_CALL_TIMEOUT_MS = 30_000;
 
+// The API rate-limits per organisation over a one-minute window, and every
+// beliq-eu repo's live suite bills the same organisation, so a burst of merges
+// across them can answer a call with 429 RATE_LIMITED (it did on 2026-09-19).
+// Waiting out Retry-After, which the API always sends and never above the
+// window, clears it, so one retry is enough.
+const RATE_LIMIT_RETRIES = 1;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const LIVE_TEST_TIMEOUT_MS = (RATE_LIMIT_RETRIES + 1) * LIVE_CALL_TIMEOUT_MS + RATE_LIMIT_RETRIES * RATE_LIMIT_WINDOW_MS;
+
 // A spent monthly quota means the contract could not be checked, not that it is
 // broken. Failing on it would block every merge for the rest of the month, so
 // it joins the same "could not run" arm as a missing key: the suite stops and
@@ -20,6 +29,17 @@ let quotaExhausted = false;
 
 function isQuotaExhausted(status: number, bytes: Buffer): boolean {
 	return status === 429 && bytes.toString('utf8').includes('QUOTA_EXCEEDED');
+}
+
+function isRateLimited(status: number, bytes: Buffer): boolean {
+	return status === 429 && bytes.toString('utf8').includes('RATE_LIMITED');
+}
+
+function retryAfterMs(headers: Headers): number {
+	const seconds = Number(headers.get('retry-after'));
+	return Number.isFinite(seconds) && seconds > 0
+		? Math.min(seconds * 1000, RATE_LIMIT_WINDOW_MS)
+		: RATE_LIMIT_WINDOW_MS;
 }
 
 async function send(req: BeliqRequest): Promise<{ status: number; headers: Headers; bytes: Buffer }> {
@@ -33,13 +53,21 @@ async function send(req: BeliqRequest): Promise<{ status: number; headers: Heade
 		: '';
 	const body =
 		req.jsonBody !== undefined ? JSON.stringify(req.jsonBody) : (req.rawBody as Buffer | undefined);
-	const res = await fetch(`${baseUrl}${req.endpoint}${qs}`, {
-		method: req.method,
-		headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': req.contentType },
-		body: body as BodyInit | undefined,
-	});
-	const bytes = Buffer.from(await res.arrayBuffer());
-	return { status: res.status, headers: res.headers, bytes };
+	for (let attempt = 0; ; attempt++) {
+		const res = await fetch(`${baseUrl}${req.endpoint}${qs}`, {
+			method: req.method,
+			headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': req.contentType },
+			body: body as BodyInit | undefined,
+		});
+		const bytes = Buffer.from(await res.arrayBuffer());
+		if (attempt < RATE_LIMIT_RETRIES && isRateLimited(res.status, bytes)) {
+			const waitMs = retryAfterMs(res.headers);
+			console.warn(`${req.endpoint} was rate limited; retrying in ${waitMs}ms`);
+			await new Promise((resolve) => setTimeout(resolve, waitMs));
+			continue;
+		}
+		return { status: res.status, headers: res.headers, bytes };
+	}
 }
 
 run('beliq live API', () => {
@@ -100,7 +128,7 @@ run('beliq live API', () => {
 		expect(res.headers.get('x-schematron-version')).toBeTruthy();
 		xrechnungXml = res.bytes;
 		expect(xrechnungXml.toString('utf8').trimStart().startsWith('<')).toBe(true);
-	}, LIVE_CALL_TIMEOUT_MS);
+	}, LIVE_TEST_TIMEOUT_MS);
 
 	it('validates the generated XRechnung', async (ctx) => {
 		if (quotaExhausted) ctx.skip();
@@ -110,7 +138,7 @@ run('beliq live API', () => {
 		expect(res.status).toBe(200);
 		const json = JSON.parse(res.bytes.toString('utf8'));
 		expect(typeof json.data.valid).toBe('boolean');
-	}, LIVE_CALL_TIMEOUT_MS);
+	}, LIVE_TEST_TIMEOUT_MS);
 
 	it('parses the generated XRechnung', async (ctx) => {
 		if (quotaExhausted) ctx.skip();
@@ -120,7 +148,7 @@ run('beliq live API', () => {
 		expect(res.status).toBe(200);
 		const json = JSON.parse(res.bytes.toString('utf8'));
 		expect(json.data.format).toBeDefined();
-	}, LIVE_CALL_TIMEOUT_MS);
+	}, LIVE_TEST_TIMEOUT_MS);
 
 	it('converts the generated XRechnung to UBL', async (ctx) => {
 		if (quotaExhausted) ctx.skip();
@@ -130,5 +158,5 @@ run('beliq live API', () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get('x-target-format')).toBe('ubl');
 		expect(res.bytes.length).toBeGreaterThan(0);
-	}, LIVE_CALL_TIMEOUT_MS);
+	}, LIVE_TEST_TIMEOUT_MS);
 });
