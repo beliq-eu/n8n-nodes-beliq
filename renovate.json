@@ -6,11 +6,6 @@
       "description": "The nanoid override lifts the dev tree above GHSA-2v37-7h3g-55p8. Both consumers are on the 3.x line: @n8n/utils (through n8n-workflow) pins exactly 3.3.8, and postcss (through vite) asks for ^3.3.17 and loads it with require(). nanoid 4 and later are ESM-only, and 6 requires node 22 or later while this repo supports node >=20.15. No CI step reaches either consumer, so a major bump shows green. Lift once both accept a newer major.",
       "matchPackageNames": ["nanoid"],
       "allowedVersions": "^3"
-    },
-    {
-      "description": "The js-yaml override lifts the dev tree above GHSA-2883-xcg3-v3hh. Both consumers, eslint 8 and @eslint/eslintrc, ask for ^4.1.0, and CI's lint reads .eslintrc.js, so the YAML load path a js-yaml 5 override would change is never exercised. Lift once neither asks for ^4.",
-      "matchPackageNames": ["js-yaml"],
-      "allowedVersions": "^4"
     }
   ]
 }
