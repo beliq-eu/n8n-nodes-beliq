@@ -23,11 +23,12 @@ import {
 	type BeliqParams,
 } from './GenericFunctions';
 
-// Option value-spaces are the LIVE, publicly-offered subset of the beliq
-// coverage SSOT (beliq-types/src/coverage). Keep in sync with that manifest:
-// provisional standards (fatturapa/facturae/eslog) and source-gated Factur-X
-// profiles (minimum/basic) are deliberately withheld from the UI. Reach
-// anything not listed here through the Advanced (JSON) field.
+// The option lists below are copies of the enums in the API's openapi.json,
+// and each badge is the one GET /v1/rulesets reports for that format.
+// test/apiSurface.test.mts compares both with test/fixtures/api-surface.json,
+// which `npm run surface:sync` rewrites from those two endpoints. A value the
+// API accepts and no list offers is in NOT_OFFERED (GenericFunctions.ts) with
+// its reason.
 
 const DEFAULT_INVOICE = JSON.stringify(
 	{
@@ -88,7 +89,8 @@ export class Beliq implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Generate and validate EU-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS)',
+		description:
+			'Generate, validate, parse and convert e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS, NLCIUS, FatturaPA, Facturae, e-SLOG, KSeF FA(3))',
 		defaults: {
 			name: 'beliq',
 		},
@@ -109,25 +111,25 @@ export class Beliq implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Generate',
+						name: 'Generate Invoice',
 						value: 'generate',
 						description: 'Build a compliant e-invoice document from invoice data',
 						action: 'Generate a compliant invoice document',
 					},
 					{
-						name: 'Validate',
+						name: 'Validate Invoice',
 						value: 'validate',
 						description: 'Check an XML or PDF invoice against the authority-pinned rules',
 						action: 'Validate an invoice document',
 					},
 					{
-						name: 'Parse',
+						name: 'Parse Invoice',
 						value: 'parse',
 						description: 'Extract a structured invoice object from an XML or PDF document',
 						action: 'Parse an invoice document',
 					},
 					{
-						name: 'Convert',
+						name: 'Convert Invoice',
 						value: 'convert',
 						description: 'Convert an invoice document from one format to another',
 						action: 'Convert an invoice document',
@@ -142,15 +144,69 @@ export class Beliq implements INodeType {
 				name: 'standard',
 				type: 'options',
 				options: [
-					{ name: 'Factur-X', value: 'facturx' },
-					{ name: 'NLCIUS (Netherlands)', value: 'nlcius' },
-					{ name: 'Peppol BIS', value: 'peppol-bis' },
-					{ name: 'XRechnung', value: 'xrechnung' },
-					{ name: 'ZUGFeRD', value: 'zugferd' },
+					{
+						// The title-case rule would make this "E-SLOG". The format is spelled
+						// "e-SLOG", which is also the label GET /v1/rulesets returns for it.
+						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-miscased
+						name: 'e-SLOG (Slovenia)',
+						value: 'eslog',
+						description: 'Schema-checked: structure only, no business rules',
+					},
+					{
+						name: 'Factur-X',
+						value: 'facturx',
+						description: "Authority-checked: validated against the authority's own rules",
+					},
+					{
+						name: 'Facturae (Spain)',
+						value: 'facturae',
+						description: 'Schema-checked: structure only, no business rules',
+					},
+					{
+						name: 'FatturaPA (Italy)',
+						value: 'fatturapa',
+						description: 'Schema-checked: structure only, no business rules. Ordinaria, format FPR12.',
+					},
+					{
+						name: 'KSeF FA(3) (Poland)',
+						value: 'ksef',
+						description:
+							'Schema-checked: structure only, no business rules. Ordinary VAT invoices in PLN between Polish parties, at VAT rates 23, 22, 8, 7 and 5 only. beliq does not submit to KSeF.',
+					},
+					{
+						name: 'NLCIUS (Netherlands)',
+						value: 'nlcius',
+						description: "Authority-checked: validated against the authority's own rules",
+					},
+					{
+						name: 'Peppol BIS',
+						value: 'peppol-bis',
+						description: "Authority-checked: validated against the authority's own rules",
+					},
+					{
+						name: 'XRechnung',
+						value: 'xrechnung',
+						description: "Authority-checked: validated against the authority's own rules",
+					},
+					{
+						name: 'ZUGFeRD',
+						value: 'zugferd',
+						description: "Authority-checked: validated against the authority's own rules",
+					},
 				],
 				default: 'xrechnung',
 				description: 'The e-invoice standard to generate',
 				displayOptions: { show: { operation: ['generate'] } },
+			},
+			{
+				displayName:
+					'The sample in Invoice (JSON) is an XRechnung example in EUR with a German seller. Replace it with your own invoice data before you generate this standard. KSeF FA(3) takes PLN and Polish parties only.',
+				name: 'nationalSampleNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: { operation: ['generate'], standard: ['eslog', 'facturae', 'fatturapa', 'ksef'] },
+				},
 			},
 			{
 				displayName: 'Output',
@@ -165,7 +221,7 @@ export class Beliq implements INodeType {
 				],
 				default: 'xml',
 				description:
-					'XML returns the invoice as text. PDF returns a hybrid PDF/A-3 with the XML embedded for Factur-X and ZUGFeRD. XRechnung and Peppol BIS have no hybrid form, so PDF returns a visualization with no XML inside it, and their legal document stays the XML. NLCIUS always returns XML, whatever this field says.',
+					'XML returns the invoice as text. PDF returns a hybrid PDF/A-3 with the XML embedded for Factur-X and ZUGFeRD. Every other standard has no hybrid form, so PDF returns a visualization with no XML inside it, and the legal document stays the XML. NLCIUS always returns XML, whatever this field says.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
 			// One field per standard, so each lists only the profiles it accepts.
@@ -176,13 +232,15 @@ export class Beliq implements INodeType {
 				name: 'facturxProfile',
 				type: 'options',
 				options: [
+					{ name: 'BASIC', value: 'basic' },
 					{ name: 'BASIC WL', value: 'basicwl' },
 					{ name: 'EN 16931', value: 'en16931' },
 					{ name: 'EXTENDED', value: 'extended' },
 					{ name: 'EXTENDED CTC FR', value: 'extended-ctc-fr' },
+					{ name: 'MINIMUM', value: 'minimum' },
 				],
 				default: 'en16931',
-				description: 'The Factur-X profile to apply',
+				description: 'The Factur-X profile to apply. MINIMUM and BASIC WL carry no invoice lines.',
 				displayOptions: { show: { operation: ['generate'], standard: ['facturx'] } },
 			},
 			{
@@ -190,12 +248,14 @@ export class Beliq implements INodeType {
 				name: 'facturxProfile',
 				type: 'options',
 				options: [
+					{ name: 'BASIC', value: 'basic' },
 					{ name: 'BASIC WL', value: 'basicwl' },
 					{ name: 'EN 16931', value: 'en16931' },
 					{ name: 'EXTENDED', value: 'extended' },
+					{ name: 'MINIMUM', value: 'minimum' },
 				],
 				default: 'en16931',
-				description: 'The ZUGFeRD profile to apply',
+				description: 'The ZUGFeRD profile to apply. MINIMUM and BASIC WL carry no invoice lines.',
 				displayOptions: { show: { operation: ['generate'], standard: ['zugferd'] } },
 			},
 			{
@@ -275,10 +335,33 @@ export class Beliq implements INodeType {
 				options: [
 					{ name: 'Auto-Detect', value: 'auto' },
 					{ name: 'CII', value: 'cii' },
+					{
+						// The title-case rule would make this "E-SLOG". The format is spelled
+						// "e-SLOG", which is also the label GET /v1/rulesets returns for it.
+						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-miscased
+						name: 'e-SLOG',
+						value: 'eslog',
+						description: 'Schema-checked: structure only, no business rules',
+					},
+					{
+						name: 'Facturae',
+						value: 'facturae',
+						description: 'Schema-checked: structure only, no business rules',
+					},
+					{
+						name: 'FatturaPA',
+						value: 'fatturapa',
+						description: 'Schema-checked: structure only, no business rules',
+					},
+					{
+						name: 'KSeF FA(3)',
+						value: 'poland_ksef_fa3',
+						description: 'Schema-checked: structure only, no business rules',
+					},
 					{ name: 'UBL', value: 'ubl' },
 				],
 				default: 'auto',
-				description: 'Hint the expected syntax, or auto-detect from the document',
+				description: 'Hint the expected format, or auto-detect from the document',
 				displayOptions: { show: { operation: ['validate'] } },
 			},
 			{
@@ -301,11 +384,14 @@ export class Beliq implements INodeType {
 					{ name: 'UBL', value: 'ubl' },
 				],
 				default: 'auto',
-				description: 'Hint the expected syntax, or auto-detect from the document',
+				description:
+					'Has no effect on the result: beliq always detects the syntax from the document itself. Parse reads UBL and CII invoices, including the XML embedded in a ZUGFeRD or Factur-X PDF.',
 				displayOptions: { show: { operation: ['parse'] } },
 			},
 
 			// ----- Convert -----
+			// The API converts within the EN 16931 family only, so its source and
+			// target enums hold no national format.
 			{
 				displayName: 'Source Format',
 				name: 'sourceFormat',
@@ -345,13 +431,16 @@ export class Beliq implements INodeType {
 				name: 'targetProfile',
 				type: 'options',
 				options: [
+					{ name: 'BASIC', value: 'basic' },
 					{ name: 'BASIC WL', value: 'basicwl' },
 					{ name: 'EN 16931', value: 'en16931' },
 					{ name: 'EXTENDED', value: 'extended' },
 					{ name: 'EXTENDED CTC FR', value: 'extended-ctc-fr' },
+					{ name: 'MINIMUM', value: 'minimum' },
 				],
 				default: 'en16931',
-				description: 'The Factur-X / ZUGFeRD profile for the target document',
+				description:
+					'The Factur-X or ZUGFeRD profile to label the target document with. Only the profile identifier is rewritten and the content is not adapted, so an invoice with lines converted to MINIMUM or BASIC WL fails that profile schema.',
 				displayOptions: { show: { operation: ['convert'], targetFormat: ['facturx', 'zugferd'] } },
 			},
 			{

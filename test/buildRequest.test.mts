@@ -64,6 +64,29 @@ describe('buildRequest - generate', () => {
 		).toHaveProperty('facturxProfile', 'extended-ctc-fr');
 	});
 
+	// Before 0.3.0 the table left these two out, and buildRequest dropped them
+	// as profiles the standard rejects.
+	it.for(['facturx', 'zugferd'])('keeps MINIMUM and BASIC on %s', (standard) => {
+		for (const facturxProfile of ['minimum', 'basic']) {
+			expect(
+				buildRequest(gen({ standard, output: 'pdf', facturxProfile })).jsonBody,
+			).toHaveProperty('facturxProfile', facturxProfile);
+		}
+	});
+
+	// Each national standard has one profile and the API applies it, so the node
+	// names none. A Factur-X profile left over from an earlier Standard choice
+	// must not ride along either.
+	it.for(['eslog', 'facturae', 'fatturapa', 'ksef'])('sends %s with no profile of either kind', (standard) => {
+		const target = resolveGenerateTarget(standard);
+		const body = buildRequest(
+			gen({ standard: target.standard, profile: target.profile, facturxProfile: 'en16931' }),
+		).jsonBody;
+		expect(body).toHaveProperty('standard', standard);
+		expect(body).not.toHaveProperty('profile');
+		expect(body).not.toHaveProperty('facturxProfile');
+	});
+
 	// The node ships no runtime dependencies, so the table is a local copy. This
 	// ties each generate dropdown to it, so the two cannot disagree.
 	it('offers each standard exactly the profiles the table accepts', () => {

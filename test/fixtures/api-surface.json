@@ -1,0 +1,111 @@
+{
+	"source": {
+		"openapi": "https://api.beliq.eu/openapi.json",
+		"openapiVersion": "0.7.0",
+		"rulesets": "https://api.beliq.eu/v1/rulesets",
+		"fetchedOn": "2026-10-01"
+	},
+	"enums": {
+		"generate": {
+			"standard": [
+				"xrechnung",
+				"zugferd",
+				"facturx",
+				"peppol-bis",
+				"fatturapa",
+				"facturae",
+				"eslog",
+				"ksef"
+			],
+			"profile": [
+				"minimum",
+				"basicwl",
+				"basic",
+				"en16931",
+				"extended",
+				"extended-ctc-fr",
+				"xrechnung",
+				"peppol",
+				"romania-ro-cius",
+				"netherlands-nlcius",
+				"ordinaria",
+				"eracun",
+				"fa3"
+			],
+			"facturxProfile": [
+				"minimum",
+				"basicwl",
+				"basic",
+				"en16931",
+				"extended",
+				"extended-ctc-fr"
+			],
+			"output": [
+				"xml",
+				"pdf"
+			]
+		},
+		"validate": {
+			"format": [
+				"auto",
+				"cii",
+				"ubl",
+				"fatturapa",
+				"sdi_messaggio",
+				"facturae",
+				"eslog",
+				"poland_ksef_fa3"
+			]
+		},
+		"parse": {
+			"format": [
+				"auto",
+				"cii",
+				"ubl",
+				"fatturapa",
+				"sdi_messaggio",
+				"facturae",
+				"eslog",
+				"poland_ksef_fa3"
+			]
+		},
+		"convert": {
+			"sourceFormat": [
+				"auto",
+				"cii",
+				"ubl",
+				"zugferd",
+				"facturx",
+				"xrechnung",
+				"peppol-bis"
+			],
+			"targetFormat": [
+				"cii",
+				"ubl",
+				"zugferd",
+				"facturx",
+				"xrechnung",
+				"peppol-bis"
+			],
+			"targetProfile": [
+				"minimum",
+				"basicwl",
+				"basic",
+				"en16931",
+				"extended",
+				"extended-ctc-fr"
+			]
+		}
+	},
+	"badges": {
+		"xrechnung": "authority-verified",
+		"factur-x": "authority-verified",
+		"zugferd": "authority-verified",
+		"peppol-bis": "authority-verified",
+		"nlcius": "authority-verified",
+		"fatturapa": "structure-checked",
+		"facturae": "structure-checked",
+		"eslog": "structure-checked",
+		"ksef": "structure-checked"
+	}
+}
