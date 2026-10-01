@@ -152,13 +152,19 @@ describe('the badge beside each format', () => {
 
 describe('the README', () => {
 	const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-	const badgeLines = readme.split('\n').filter((line) => /^- \*\*[A-Za-z]+-checked\*\*/.test(line));
+	// Each badge has one line: "- **<badge>** (<what it means>): <format>, <format>."
+	const formatsByBadge = readme
+		.split('\n')
+		.filter((line) => /^- \*\*[A-Za-z]+-checked\*\*/.test(line))
+		.map((line): [string, string[]] => [
+			line.split('**')[1],
+			line.slice(line.indexOf('): ') + 3).replace(/\.$/, '').split(', '),
+		]);
 
 	it.for(optionsOf('standard'))('lists $name under its badge and under no other', (option) => {
 		const label = option.name.split(' (')[0];
-		const badge = badgeLabel(rulesetsFormat(option.value));
-		const listing = badgeLines.filter((line) => new RegExp(`[ ,]${label.replace(/[()]/g, '\\$&')}[,.]`).test(line));
-		expect(listing.map((line) => line.split('**')[1])).toEqual([badge]);
+		const listedUnder = formatsByBadge.filter(([, formats]) => formats.includes(label)).map(([badge]) => badge);
+		expect(listedUnder).toEqual([badgeLabel(rulesetsFormat(option.value))]);
 	});
 });
 
