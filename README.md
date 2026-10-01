@@ -44,11 +44,13 @@ Requires n8n with `n8nNodesApiVersion: 1` and Node.js >= 20.15.
 ```bash
 npm install
 npm run build      # tsc + copy icons into dist
-npm run lint
+npm run lint       # n8n-node lint: the rules n8n's verification scanner applies
 npm run scrub:check   # no em-dash in any tracked file
 npm test           # unit tests (no network)
 BELIQ_API_KEY=blq_xxx npm run test:integration   # hits the live API; draws quota
 ```
+
+Tests are `*.test.mts`, not `.ts`. `"n8n": { "strict": true }` in `package.json` requires the default `eslint.config.mjs`, and that config lints every `.ts` file with the rules for code that runs inside n8n (no `node:fs`, no `process`). Tests do not ship, so they sit outside it.
 
 ## Publishing
 

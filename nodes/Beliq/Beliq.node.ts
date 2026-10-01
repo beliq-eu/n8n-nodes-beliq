@@ -1,5 +1,6 @@
 import {
 	NodeApiError,
+	NodeConnectionTypes,
 	NodeOperationError,
 	type IDataObject,
 	type IExecuteFunctions,
@@ -83,7 +84,7 @@ export class Beliq implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'beliq',
 		name: 'beliq',
-		icon: 'file:beliq.svg',
+		icon: { light: 'file:beliq.svg', dark: 'file:beliq.svg' },
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
@@ -91,8 +92,9 @@ export class Beliq implements INodeType {
 		defaults: {
 			name: 'beliq',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
+		usableAsTool: true,
 		credentials: [
 			{
 				name: 'beliqApi',
@@ -202,7 +204,8 @@ export class Beliq implements INodeType {
 				type: 'json',
 				default: DEFAULT_INVOICE,
 				required: true,
-				description: 'The invoice object in beliq EN 16931 shape',
+				description:
+					'The invoice object in beliq EN 16931 shape. Use only values the user or the source system supplied. When a required field is missing, ask for it instead of filling it in.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
 			{
@@ -504,7 +507,11 @@ export class Beliq implements INodeType {
 					});
 					continue;
 				}
-				if (error instanceof NodeOperationError) throw error;
+				// The constructor hands an existing NodeOperationError back unchanged,
+				// so its message and item index survive.
+				if (error instanceof NodeOperationError) {
+					throw new NodeOperationError(this.getNode(), error);
+				}
 				throw new NodeApiError(
 					this.getNode(),
 					error as JsonObject,

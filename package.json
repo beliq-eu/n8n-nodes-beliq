@@ -34,17 +34,18 @@
     "build": "tsc && node scripts/copy-icons.mjs",
     "prepublishOnly": "npm run build",
     "dev": "tsc --watch",
-    "lint": "eslint nodes credentials package.json",
-    "lintfix": "eslint nodes credentials package.json --fix",
+    "lint": "n8n-node lint",
+    "lintfix": "n8n-node lint --fix",
     "scrub:check": "bash scripts/scrub-check.sh",
-    "test": "vitest run --exclude test/integration.test.ts",
-    "test:integration": "vitest run test/integration.test.ts"
+    "test": "vitest run --exclude test/integration.test.mts",
+    "test:integration": "vitest run test/integration.test.mts"
   },
   "files": [
     "dist"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
+    "strict": true,
     "credentials": [
       "dist/credentials/BeliqApi.credentials.js"
     ],
@@ -55,15 +56,11 @@
   "peerDependencies": {
     "n8n-workflow": "*"
   },
-  "overrides": {
-    "nanoid": "^3.3.18"
-  },
   "devDependencies": {
+    "@n8n/node-cli": "^0.50.4",
     "@types/node": "^20.14.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^10.11.0",
-    "eslint-plugin-n8n-nodes-base": "^2.0.0",
-    "n8n-workflow": "*",
+    "eslint": "9.39.4",
+    "n8n-workflow": "^2.41.2",
     "prettier": "^3.3.3",
     "typescript": "^6.0.0",
     "vitest": "^4.0.0"
