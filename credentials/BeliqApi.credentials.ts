@@ -2,6 +2,7 @@ import type {
 	IAuthenticateGeneric,
 	ICredentialTestRequest,
 	ICredentialType,
+	Icon,
 	INodeProperties,
 } from 'n8n-workflow';
 
@@ -9,6 +10,11 @@ export class BeliqApi implements ICredentialType {
 	name = 'beliqApi';
 
 	displayName = 'Beliq API';
+
+	icon: Icon = {
+		light: 'file:../nodes/Beliq/beliq.svg',
+		dark: 'file:../nodes/Beliq/beliq.svg',
+	};
 
 	documentationUrl = 'https://docs.beliq.eu';
 
