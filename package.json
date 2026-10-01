@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-beliq",
   "version": "0.2.3",
-  "description": "n8n community node for beliq - generate and validate EU-compliant e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS) with authority-pinned, drift-checked rules.",
+  "description": "n8n community node for beliq - generate, validate, parse and convert e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS, NLCIUS, FatturaPA, Facturae, e-SLOG, KSeF FA(3)).",
   "keywords": [
     "n8n-community-node-package",
     "beliq",
@@ -11,6 +11,11 @@
     "zugferd",
     "factur-x",
     "peppol",
+    "nlcius",
+    "fatturapa",
+    "facturae",
+    "eslog",
+    "ksef",
     "en16931",
     "compliance"
   ],
@@ -37,6 +42,7 @@
     "lint": "n8n-node lint",
     "lintfix": "n8n-node lint --fix",
     "scrub:check": "bash scripts/scrub-check.sh",
+    "surface:sync": "node scripts/sync-api-surface.mjs",
     "test": "vitest run --exclude test/integration.test.mts",
     "test:integration": "vitest run test/integration.test.mts"
   },

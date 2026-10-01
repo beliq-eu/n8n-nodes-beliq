@@ -130,13 +130,47 @@ export function resolveGenerateTarget(standard: string): GenerateTarget {
  * The Factur-X profiles each hybrid standard accepts. The engine pins `profile`
  * per standard and answers a pair outside its table with 422
  * PROFILE_STANDARD_MISMATCH: `extended-ctc-fr` is the AFNOR France CTC overlay
- * and has no ZUGFeRD counterpart. A copy of the Factur-X half of the SDK's
- * LIVE_PROFILES_BY_STANDARD, because this node ships no runtime dependencies;
- * test/buildRequest.test.ts pins the two dropdowns to it.
+ * and has no ZUGFeRD counterpart. The table is the one in the API reference,
+ * https://docs.beliq.eu/api-reference/generate/; test/buildRequest.test.mts
+ * pins the two dropdowns to it and test/apiSurface.test.mts pins it to the
+ * API's enum.
  */
 export const FACTURX_PROFILES_BY_STANDARD: Readonly<Record<string, readonly string[]>> = {
-	facturx: ['basicwl', 'en16931', 'extended', 'extended-ctc-fr'],
-	zugferd: ['basicwl', 'en16931', 'extended'],
+	facturx: ['basic', 'basicwl', 'en16931', 'extended', 'extended-ctc-fr', 'minimum'],
+	zugferd: ['basic', 'basicwl', 'en16931', 'extended', 'minimum'],
+};
+
+const DEFAULT_PROFILE = 'The API applies it when the request names no profile, so there is nothing to choose.';
+const PARSE_READS_UBL_AND_CII =
+	'POST /v1/parse ignores this hint and reads UBL and CII invoices only.';
+
+/**
+ * Values the API's enums accept that no dropdown offers, keyed by operation and
+ * request field, each with its reason. test/apiSurface.test.mts fails when an
+ * enum value is neither offered nor listed here, and when an entry here names
+ * a value the enum has dropped or a dropdown has since taken up.
+ */
+export const NOT_OFFERED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+	'generate.profile': {
+		xrechnung: `The only profile of XRechnung. ${DEFAULT_PROFILE}`,
+		peppol: `The default profile of Peppol BIS. ${DEFAULT_PROFILE}`,
+		ordinaria: `The only profile of FatturaPA and of Facturae. ${DEFAULT_PROFILE}`,
+		eracun: `The only profile of e-SLOG. ${DEFAULT_PROFILE}`,
+		fa3: `The only profile of KSeF. ${DEFAULT_PROFILE}`,
+		'romania-ro-cius':
+			'GET /v1/rulesets lists no Romanian format, so there is no badge to show beside it.',
+	},
+	'validate.format': {
+		sdi_messaggio:
+			'An SdI file message (a receipt or a notification), not an invoice, and GET /v1/rulesets lists no entry for it. Auto-Detect still recognises one.',
+	},
+	'parse.format': {
+		fatturapa: PARSE_READS_UBL_AND_CII,
+		sdi_messaggio: PARSE_READS_UBL_AND_CII,
+		facturae: PARSE_READS_UBL_AND_CII,
+		eslog: PARSE_READS_UBL_AND_CII,
+		poland_ksef_fa3: PARSE_READS_UBL_AND_CII,
+	},
 };
 
 export function buildRequest(params: BeliqParams): BeliqRequest {

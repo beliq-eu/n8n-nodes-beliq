@@ -16,7 +16,7 @@ export class BeliqApi implements ICredentialType {
 		dark: 'file:../nodes/Beliq/beliq.svg',
 	};
 
-	documentationUrl = 'https://docs.beliq.eu';
+	documentationUrl = 'https://docs.beliq.eu/integrations/n8n/';
 
 	properties: INodeProperties[] = [
 		{

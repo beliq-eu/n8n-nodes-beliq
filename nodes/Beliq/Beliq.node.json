@@ -6,12 +6,12 @@
 	"resources": {
 		"primaryDocumentation": [
 			{
-				"url": "https://docs.beliq.eu"
+				"url": "https://docs.beliq.eu/integrations/n8n/"
 			}
 		],
 		"credentialDocumentation": [
 			{
-				"url": "https://docs.beliq.eu"
+				"url": "https://docs.beliq.eu/integrations/n8n/"
 			}
 		]
 	}
