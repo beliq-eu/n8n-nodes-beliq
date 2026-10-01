@@ -65,7 +65,7 @@
     "eslint-plugin-n8n-nodes-base": "^2.0.0",
     "n8n-workflow": "*",
     "prettier": "^3.3.3",
-    "typescript": "^5.5.4",
+    "typescript": "^6.0.0",
     "vitest": "^4.0.0"
   }
 }
