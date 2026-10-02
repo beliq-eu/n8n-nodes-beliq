@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-beliq",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "n8n community node for beliq - generate, validate, parse and convert e-invoices (XRechnung, ZUGFeRD, Factur-X, Peppol BIS, NLCIUS, FatturaPA, Facturae, e-SLOG, KSeF FA(3)).",
   "keywords": [
     "n8n-community-node-package",
