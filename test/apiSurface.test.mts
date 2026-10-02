@@ -162,8 +162,12 @@ describe('the README', () => {
 		]);
 
 	it.for(optionsOf('standard'))('lists $name under its badge and under no other', (option) => {
-		const label = option.name.split(' (')[0];
-		const listedUnder = formatsByBadge.filter(([, formats]) => formats.includes(label)).map(([badge]) => badge);
+		// Case-insensitive because n8n's scanner forces title case on the label ("E-SLOG")
+		// while the README keeps the format's own spelling ("e-SLOG").
+		const label = option.name.split(' (')[0].toLowerCase();
+		const listedUnder = formatsByBadge
+			.filter(([, formats]) => formats.some((format) => format.toLowerCase() === label))
+			.map(([badge]) => badge);
 		expect(listedUnder).toEqual([badgeLabel(rulesetsFormat(option.value))]);
 	});
 });
