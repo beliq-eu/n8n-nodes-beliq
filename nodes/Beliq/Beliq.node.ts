@@ -13,10 +13,10 @@ import {
 import {
 	beliqApiRequest,
 	bodyToBuffer,
-	bodyToString,
 	buildRequest,
 	defaultFilename,
 	extractApiErrorMessage,
+	parseJsonBody,
 	resolveGenerateTarget,
 	sniffContentType,
 	type BeliqOperation,
@@ -542,7 +542,7 @@ export class Beliq implements INodeType {
 
 				if (request.outputKind === 'json' || contentTypeHeader.includes('application/json')) {
 					// JSON result (validate/parse) or the generate JSON fallback.
-					const parsed = JSON.parse(bodyToString(response.body)) as IDataObject;
+					const parsed = parseJsonBody(response.body);
 					const data = (parsed.data as IDataObject) ?? parsed;
 					returnData.push({ json: data, pairedItem: { item: i } });
 					continue;
@@ -598,6 +598,13 @@ export class Beliq implements INodeType {
 				// so its message and item index survive.
 				if (error instanceof NodeOperationError) {
 					throw new NodeOperationError(this.getNode(), error);
+				}
+				// n8n's request helper already wrapped it, and a re-wrap hands it back
+				// unchanged, so the message and the item index are set on it first.
+				if (error instanceof NodeApiError) {
+					if (apiMessage) error.message = apiMessage;
+					error.context.itemIndex = i;
+					throw new NodeApiError(this.getNode(), error as unknown as JsonObject);
 				}
 				throw new NodeApiError(
 					this.getNode(),

@@ -323,8 +323,8 @@ export async function beliqApiRequest(
 		options.body = request.jsonBody;
 		options.json = true;
 	} else {
-		// Raw document bytes in, JSON out: send the buffer untouched and parse the
-		// text response in the node (json:false keeps n8n from re-encoding it).
+		// Raw document bytes in, JSON out: send the buffer untouched (json:false
+		// keeps n8n from re-encoding it). The answer is read with parseJsonBody.
 		options.body = request.rawBody;
 		options.json = false;
 	}
@@ -344,6 +344,16 @@ export function bodyToString(body: unknown): string {
 	return String(body ?? '');
 }
 
+/**
+ * Read a JSON response body. n8n's request helper hands it over already parsed
+ * even with `json: false` (seen on n8n 2.41.6 for validate and parse), so a
+ * string or bytes body is parsed and an object is taken as it is.
+ */
+export function parseJsonBody(body: unknown): IDataObject {
+	if (isPlainObject(body) && !Buffer.isBuffer(body) && !(body instanceof ArrayBuffer)) return body;
+	return JSON.parse(bodyToString(body)) as IDataObject;
+}
+
 /** Coerce a binary response body to a Buffer. */
 export function bodyToBuffer(body: unknown): Buffer {
 	if (Buffer.isBuffer(body)) return body;
@@ -358,8 +368,30 @@ export function bodyToBuffer(body: unknown): Buffer {
  * body arrives as bytes.
  */
 export function extractApiErrorMessage(error: unknown): string | undefined {
-	const err = error as { response?: { body?: unknown } } | undefined;
-	let payload: unknown = err?.response?.body;
+	const err = error as
+		| {
+				response?: { body?: unknown; data?: unknown };
+				cause?: { response?: { data?: unknown } };
+				context?: { data?: unknown };
+		  }
+		| undefined;
+	// Inside n8n the request helper throws a NodeApiError: the parsed envelope is in
+	// `context.data`, and the raw answer, bytes included, in `cause.response.data`.
+	const bodies = [
+		err?.response?.body,
+		err?.response?.data,
+		err?.cause?.response?.data,
+		err?.context?.data,
+	];
+	for (const body of bodies) {
+		const message = envelopeMessage(body);
+		if (message) return message;
+	}
+	return undefined;
+}
+
+function envelopeMessage(body: unknown): string | undefined {
+	let payload: unknown = body;
 	if (payload instanceof ArrayBuffer) payload = Buffer.from(payload).toString('utf8');
 	if (Buffer.isBuffer(payload)) payload = payload.toString('utf8');
 	if (typeof payload === 'string') {
