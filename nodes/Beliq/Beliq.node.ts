@@ -145,10 +145,10 @@ export class Beliq implements INodeType {
 				type: 'options',
 				options: [
 					{
-						// The title-case rule would make this "E-SLOG". The format is spelled
-						// "e-SLOG", which is also the label GET /v1/rulesets returns for it.
-						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-miscased
-						name: 'e-SLOG (Slovenia)',
+						// The format is spelled "e-SLOG". n8n's verification scanner
+						// (@n8n/scan-community-package) enforces title case on option names and
+						// ignores inline eslint-disable comments, so only "E-SLOG" passes it.
+						name: 'E-SLOG (Slovenia)',
 						value: 'eslog',
 						description: 'Schema-checked: structure only, no business rules',
 					},
@@ -336,10 +336,8 @@ export class Beliq implements INodeType {
 					{ name: 'Auto-Detect', value: 'auto' },
 					{ name: 'CII', value: 'cii' },
 					{
-						// The title-case rule would make this "E-SLOG". The format is spelled
-						// "e-SLOG", which is also the label GET /v1/rulesets returns for it.
-						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-miscased
-						name: 'e-SLOG',
+						// Title case for n8n's verification scanner, as on Generate Standard.
+						name: 'E-SLOG',
 						value: 'eslog',
 						description: 'Schema-checked: structure only, no business rules',
 					},
