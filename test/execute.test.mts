@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { NodeApiError, NodeOperationError, type IExecuteFunctions, type INode } from 'n8n-workflow';
+import {
+	NodeApiError,
+	NodeOperationError,
+	type IExecuteFunctions,
+	type INode,
+	type JsonObject,
+} from 'n8n-workflow';
 import { Beliq } from '../nodes/Beliq/Beliq.node';
 
 const NODE: INode = {
@@ -110,4 +116,102 @@ describe('execute, the API refuses the second item', () => {
 			},
 		]);
 	});
+});
+
+// n8n's request helper hands a JSON answer over already parsed, even with
+// `json: false`: validate and parse failed inside n8n 2.41.6 with
+// `"[object Object]" is not valid JSON` while every test here passed a string.
+describe('execute, the JSON answer of validate and parse', () => {
+	const ANSWERS = {
+		validate: { success: true, data: { valid: true, errors: [] } },
+		parse: { success: true, data: { format: 'cii', invoice: { number: 'INV-1' } } },
+	};
+
+	function helpers(body: unknown) {
+		return {
+			httpRequestWithAuthentication: async () => ({
+				statusCode: 200,
+				headers: { 'content-type': 'application/json; charset=utf-8' },
+				body,
+			}),
+		};
+	}
+
+	const shapes = {
+		'already parsed, as n8n passes it': (answer: object) => answer,
+		'as a string': (answer: object) => JSON.stringify(answer),
+		'as bytes': (answer: object) => Buffer.from(JSON.stringify(answer)),
+	};
+
+	for (const [operation, answer] of Object.entries(ANSWERS)) {
+		for (const [shape, encode] of Object.entries(shapes)) {
+			it(`${operation} returns the data when the body arrives ${shape}`, async () => {
+				const parameters = { operation, inputSource: 'text', inputText: '<Invoice/>' };
+				const [output] = await new Beliq().execute.call(
+					context(1, parameters, false, helpers(encode(answer))),
+				);
+
+				expect(output).toEqual([{ json: answer.data, pairedItem: { item: 0 } }]);
+			});
+		}
+	}
+});
+
+// Inside n8n the request helper throws n8n's own NodeApiError around the axios
+// error. Its message is n8n's generic one for the status ("Bad request - please
+// check your parameters"), and re-wrapping it hands the same object back, so the
+// API's message and the item index have to be set on that error.
+describe('execute, the API refuses and n8n has wrapped the error', () => {
+	class AxiosError extends Error {
+		constructor(readonly response: { status: number; data: unknown }) {
+			super(`Request failed with status code ${response.status}`);
+		}
+	}
+
+	const ENVELOPE = {
+		success: false,
+		error: { code: 'INVALID_INVOICE', message: 'Generated invoice failed validation' },
+	};
+
+	const bodies = {
+		'parsed JSON (validate, parse)': ENVELOPE,
+		'bytes (generate, convert)': Buffer.from(JSON.stringify(ENVELOPE)),
+	};
+
+	function helpers(data: unknown) {
+		return {
+			httpRequestWithAuthentication: async () => {
+				throw new NodeApiError(NODE, new AxiosError({ status: 422, data }) as unknown as JsonObject);
+			},
+		};
+	}
+
+	const DOCUMENT = { operation: 'validate', inputSource: 'text', inputText: '<Invoice/>' };
+
+	for (const [shape, data] of Object.entries(bodies)) {
+		it(`fails with the API message and code, and names the item, for ${shape}`, async () => {
+			const run = new Beliq().execute.call(context(2, DOCUMENT, false, helpers(data)));
+			const error = await run.then(
+				() => undefined,
+				(e: unknown) => e,
+			);
+
+			expect(error).toBeInstanceOf(NodeApiError);
+			expect((error as NodeApiError).message).toBe(
+				'Generated invoice failed validation (INVALID_INVOICE)',
+			);
+			expect((error as NodeApiError).context.itemIndex).toBe(0);
+		});
+
+		it(`returns the API message per item on continue on fail, for ${shape}`, async () => {
+			const [output] = await new Beliq().execute.call(context(1, DOCUMENT, true, helpers(data)));
+
+			expect(output).toEqual([
+				{
+					json: { error: 'Generated invoice failed validation (INVALID_INVOICE)' },
+					pairedItem: { item: 0 },
+				},
+			]);
+		});
+	}
 });
