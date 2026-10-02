@@ -3,7 +3,7 @@
 		"openapi": "https://api.beliq.eu/openapi.json",
 		"openapiVersion": "0.7.0",
 		"rulesets": "https://api.beliq.eu/v1/rulesets",
-		"fetchedOn": "2026-10-01"
+		"fetchedOn": "2026-10-02"
 	},
 	"enums": {
 		"generate": {
