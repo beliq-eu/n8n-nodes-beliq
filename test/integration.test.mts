@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { buildRequest, type BeliqRequest } from '../nodes/Beliq/GenericFunctions';
+import { buildRequest, readGenerateEnvelope, type BeliqRequest } from '../nodes/Beliq/GenericFunctions';
 
 // Live smoke test against the real beliq API. It DOES consume one quota unit
 // per call, so it is opt-in: set BELIQ_API_KEY (and optionally BELIQ_BASE_URL)
@@ -56,7 +56,11 @@ async function send(req: BeliqRequest): Promise<{ status: number; headers: Heade
 	for (let attempt = 0; ; attempt++) {
 		const res = await fetch(`${baseUrl}${req.endpoint}${qs}`, {
 			method: req.method,
-			headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': req.contentType },
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				'Content-Type': req.contentType,
+				...(req.accept ? { Accept: req.accept } : {}),
+			},
 			body: body as BodyInit | undefined,
 		});
 		const bytes = Buffer.from(await res.arrayBuffer());
@@ -124,10 +128,22 @@ run('beliq live API', () => {
 		if (res.status !== 200) {
 			throw new Error(`generate returned ${res.status}: ${res.bytes.toString('utf8').slice(0, 4000)}`);
 		}
-		expect(res.headers.get('content-type')).toContain('application/xml');
+		expect(res.headers.get('content-type')).toContain('application/json');
 		expect(res.headers.get('x-schematron-version')).toBeTruthy();
-		xrechnungXml = res.bytes;
+		const generated = readGenerateEnvelope(res.bytes);
+		expect(generated.document?.contentType).toContain('application/xml');
+		xrechnungXml = generated.document!.bytes;
 		expect(xrechnungXml.toString('utf8').trimStart().startsWith('<')).toBe(true);
+
+		// The depth the node passes on is the one the API states for the format:
+		// GET /v1/rulesets needs no key and costs no quota.
+		const rulesets = (await (await fetch(`${baseUrl}/v1/rulesets`)).json()) as {
+			data: { rulesets: { format: string; verificationBadgeLabel: string }[] };
+		};
+		const xrechnung = rulesets.data.rulesets.find((r) => r.format === 'xrechnung');
+		expect(xrechnung).toBeDefined();
+		const verdict = generated.fields.validationResult as { verificationBadgeLabel?: string };
+		expect(verdict.verificationBadgeLabel).toBe(xrechnung!.verificationBadgeLabel);
 	}, LIVE_TEST_TIMEOUT_MS);
 
 	it('validates the generated XRechnung', async (ctx) => {

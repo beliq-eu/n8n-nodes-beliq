@@ -22,8 +22,12 @@ export type BeliqOperation = 'generate' | 'validate' | 'parse' | 'convert';
 /** Raw-input ops (validate/parse/convert) read the document from a binary field or pasted text. */
 export type BeliqInputSource = 'binary' | 'text';
 
-/** What the response carries: parsed JSON, or bytes (a generated/converted document). */
-export type BeliqOutputKind = 'json' | 'binary';
+/**
+ * What the response carries: parsed JSON (validate, parse), bytes (a converted
+ * document), or generate's JSON envelope, which holds the document base64-encoded
+ * beside the verdict validation reached on it.
+ */
+export type BeliqOutputKind = 'json' | 'binary' | 'envelope';
 
 export interface BeliqParams {
 	operation: BeliqOperation;
@@ -67,6 +71,8 @@ export interface BeliqRequest {
 	/** Set for validate/parse/convert (raw document bytes). */
 	rawBody?: Buffer;
 	contentType: string;
+	/** Sent as the Accept header when set. */
+	accept?: string;
 	outputKind: BeliqOutputKind;
 }
 
@@ -104,7 +110,8 @@ function compactQuery(query: IDataObject): IDataObject {
  * side-effect free so it can be unit-tested without an n8n runtime.
  *
  * The four operations are heterogeneous:
- * - generate: JSON body in, document bytes out (XML or PDF).
+ * - generate: JSON body in, a JSON envelope out that carries the document
+ *   (XML or PDF) and its `validationResult`.
  * - validate / parse: raw document bytes in, JSON out.
  * - convert: raw document bytes in, document bytes out.
  */
@@ -158,7 +165,7 @@ export const NOT_OFFERED: Readonly<Record<string, Readonly<Record<string, string
 		eracun: `The only profile of e-SLOG. ${DEFAULT_PROFILE}`,
 		fa3: `The only profile of KSeF. ${DEFAULT_PROFILE}`,
 		'romania-ro-cius':
-			'GET /v1/rulesets lists no Romanian format, so there is no badge to show beside it.',
+			'GET /v1/rulesets, the list of formats beliq offers, has no Romanian entry, and the Standard dropdown offers exactly the formats it lists. Advanced (JSON) can still send this profile.',
 	},
 	'validate.format': {
 		sdi_messaggio:
@@ -211,7 +218,11 @@ export function buildRequest(params: BeliqParams): BeliqRequest {
 				endpoint: '/v1/generate',
 				jsonBody: merged,
 				contentType: 'application/json',
-				outputKind: 'binary',
+				// The envelope is the only answer whose body carries the verdict's
+				// check depth (`validationResult.verificationBadgeLabel`); the raw
+				// document answer has none of it.
+				accept: 'application/json',
+				outputKind: 'envelope',
 			};
 		}
 
@@ -307,7 +318,10 @@ export async function beliqApiRequest(
 	const options: IHttpRequestOptions = {
 		method: request.method,
 		url: `${baseUrl}${request.endpoint}`,
-		headers: { 'Content-Type': request.contentType },
+		headers: {
+			'Content-Type': request.contentType,
+			...(request.accept ? { Accept: request.accept } : {}),
+		},
 		qs: request.query,
 		returnFullResponse: true,
 		timeout: REQUEST_TIMEOUT_MS,
@@ -317,8 +331,7 @@ export async function beliqApiRequest(
 		// Document bytes (and the conversion metadata headers) come back raw.
 		options.encoding = 'arraybuffer';
 		options.json = false;
-		// generate sends a JSON body but returns bytes, so it must be stringified.
-		options.body = request.jsonBody !== undefined ? JSON.stringify(request.jsonBody) : request.rawBody;
+		options.body = request.rawBody;
 	} else if (request.jsonBody !== undefined) {
 		options.body = request.jsonBody;
 		options.json = true;
@@ -352,6 +365,31 @@ export function bodyToString(body: unknown): string {
 export function parseJsonBody(body: unknown): IDataObject {
 	if (isPlainObject(body) && !Buffer.isBuffer(body) && !(body instanceof ArrayBuffer)) return body;
 	return JSON.parse(bodyToString(body)) as IDataObject;
+}
+
+export interface GenerateEnvelope {
+	/**
+	 * The generated document, decoded from `data.output`, with the content type
+	 * the API sent beside it. Absent when the answer carries no document.
+	 */
+	document?: { bytes: Buffer; contentType: string };
+	/** The rest of `data` as the API sent it, or all of it when there is no document. */
+	fields: IDataObject;
+}
+
+/**
+ * Read generate's JSON envelope (https://docs.beliq.eu/api-reference/generate/,
+ * "JSON envelope"): the document base64-encoded in `data.output`, and beside it
+ * `validationResult` and the document's metadata, passed on unchanged. The API
+ * answers with the verdict and no `output` when the engine returned no document
+ * of the requested kind; that answer is passed on whole.
+ */
+export function readGenerateEnvelope(body: unknown): GenerateEnvelope {
+	const parsed = parseJsonBody(body);
+	const data = isPlainObject(parsed.data) ? parsed.data : parsed;
+	if (typeof data.output !== 'string' || typeof data.contentType !== 'string') return { fields: data };
+	const { output, ...fields } = data;
+	return { document: { bytes: Buffer.from(output, 'base64'), contentType: data.contentType }, fields };
 }
 
 /** Coerce a binary response body to a Buffer. */

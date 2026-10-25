@@ -31,7 +31,7 @@ function capturing(): { calls: IHttpRequestOptions[]; ctx: IExecuteFunctions } {
 
 const CASES: Array<{ label: string; params: BeliqParams }> = [
 	{
-		label: 'generate (JSON in, bytes out)',
+		label: 'generate (JSON in, JSON envelope out)',
 		params: {
 			operation: 'generate',
 			standard: 'xrechnung',
@@ -74,4 +74,28 @@ describe('beliqApiRequest deadline', () => {
 		// under 75s would abandon a generate the server is still working on.
 		expect(REQUEST_TIMEOUT_MS).toBeGreaterThan(75_000);
 	});
+});
+
+describe('beliqApiRequest Accept header', () => {
+	it('asks generate for the JSON envelope and has n8n parse it', async () => {
+		const { calls, ctx } = capturing();
+
+		const generate = CASES.find(({ params }) => params.operation === 'generate')!;
+		await beliqApiRequest.call(ctx, buildRequest(generate.params));
+
+		expect(calls[0].headers).toMatchObject({ Accept: 'application/json' });
+		expect(calls[0].json).toBe(true);
+		expect(calls[0].encoding).toBeUndefined();
+	});
+
+	it.each(CASES.filter(({ params }) => params.operation !== 'generate'))(
+		'sends no Accept header on $label',
+		async ({ params }) => {
+			const { calls, ctx } = capturing();
+
+			await beliqApiRequest.call(ctx, buildRequest(params));
+
+			expect(calls[0].headers).not.toHaveProperty('Accept');
+		},
+	);
 });

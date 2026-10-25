@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
 	NodeApiError,
 	NodeOperationError,
@@ -214,4 +215,114 @@ describe('execute, the API refuses and n8n has wrapped the error', () => {
 			]);
 		});
 	}
+});
+
+// Generate asks for the JSON envelope, because it is the only answer whose body
+// carries the verdict's check depth. The document goes on as binary data and
+// the envelope's other fields as the item's JSON, as the API sent them. The
+// recorded answer is a real one (test/fixtures/generate-envelope-xrechnung.json).
+describe('execute, generate reads the JSON envelope', () => {
+	interface Recorded {
+		headers: Record<string, string>;
+		body: { success: boolean; data: Record<string, unknown> & { output: string } };
+	}
+	const RECORDED = JSON.parse(
+		readFileSync(new URL('./fixtures/generate-envelope-xrechnung.json', import.meta.url), 'utf8'),
+	) as Recorded;
+	const RECORDED_VERDICT = RECORDED.body.data.validationResult as Record<string, unknown>;
+
+	const GENERATE = {
+		operation: 'generate',
+		standard: 'xrechnung',
+		output: 'xml',
+		invoice: '{}',
+		verify: true,
+		advanced: '{}',
+		outputField: 'data',
+	};
+
+	/** n8n's helper, which hands a JSON answer over already parsed, and its binary helper. */
+	function helpers(body: unknown, headers: Record<string, string> = RECORDED.headers) {
+		return {
+			httpRequestWithAuthentication: async () => ({ statusCode: 200, headers, body }),
+			prepareBinaryData: async (data: Buffer, fileName: string, mimeType: string) => ({
+				data: data.toString('base64'),
+				fileName,
+				mimeType,
+			}),
+		};
+	}
+
+	function withData(data: Record<string, unknown>) {
+		return { ...RECORDED.body, data: { ...RECORDED.body.data, ...data } };
+	}
+
+	async function generate(body: unknown) {
+		const [output] = await new Beliq().execute.call(context(1, GENERATE, false, helpers(body)));
+		return output[0];
+	}
+
+	it('hands the decoded document on as binary data', async () => {
+		const item = await generate(RECORDED.body);
+
+		expect(item.binary?.data).toEqual({
+			data: RECORDED.body.data.output,
+			fileName: 'invoice.xml',
+			mimeType: 'application/xml',
+		});
+		expect(Buffer.from(RECORDED.body.data.output, 'base64').toString('utf8')).toContain('CrossIndustryInvoice');
+	});
+
+	it('puts the validation result on the item JSON as the API sent it', async () => {
+		const item = await generate(RECORDED.body);
+
+		expect(item.json.validationResult).toEqual(RECORDED_VERDICT);
+		expect((item.json.validationResult as Record<string, unknown>).verificationBadgeLabel).toBe(
+			RECORDED_VERDICT.verificationBadgeLabel,
+		);
+		expect(item.json.sha256).toBe(RECORDED.body.data.sha256);
+		expect(item.json.schematronVersion).toBe(RECORDED.headers['x-schematron-version']);
+		expect(item.json.sizeBytes).toBe(Buffer.from(RECORDED.body.data.output, 'base64').length);
+		expect(item.json).not.toHaveProperty('output');
+	});
+
+	it('names no depth where the API stated none', async () => {
+		const { verificationTier, verificationBadge, verificationBadgeLabel, ...unbadged } = RECORDED_VERDICT;
+		expect([verificationTier, verificationBadge, verificationBadgeLabel].every(Boolean)).toBe(true);
+
+		const item = await generate(withData({ validationResult: unbadged }));
+
+		expect(item.json.validationResult).toEqual(unbadged);
+		expect(JSON.stringify(item.json)).not.toContain(String(verificationBadgeLabel));
+		expect(JSON.stringify(item.json)).not.toContain('verificationBadge');
+	});
+
+	it('names the file after the content type the envelope carries', async () => {
+		// The PDF answer's own fields, as the API sent them for a ZUGFeRD PDF on 2026-10-25.
+		const item = await generate(withData({ contentType: 'application/pdf', pdfKind: 'hybrid' }));
+
+		expect(item.binary?.data).toMatchObject({ fileName: 'invoice.pdf', mimeType: 'application/pdf' });
+		expect(item.json.pdfKind).toBe('hybrid');
+	});
+
+	it('types no document whose content type the API did not send', async () => {
+		const { contentType: _contentType, ...data } = RECORDED.body.data;
+
+		const item = await generate({ success: true, data });
+
+		expect(item.binary).toBeUndefined();
+		expect(item.json).toEqual(data);
+	});
+
+	// The API's generate route ends with this answer when the engine returned no
+	// document of the requested kind: the verdict and the document's identity, no
+	// `output`, `contentType` or `sha256`.
+	it('passes an answer with no document on as the item JSON, with no binary', async () => {
+		const { invoiceId, format, standard, profile, validationResult } = RECORDED.body.data;
+		const data = { invoiceId, format, standard, profile, validationResult };
+
+		const item = await generate({ success: true, data });
+
+		expect(item).toEqual({ json: data, pairedItem: { item: 0 } });
+	});
 });

@@ -98,77 +98,80 @@ describe('the dropdowns against the API enums', () => {
 	});
 });
 
-// The labels beliq shows for the badge values GET /v1/rulesets returns. The
-// three badges are defined at https://docs.beliq.eu/compliance/how-verification-works/.
-const BADGE_LABEL: Record<string, string> = {
-	'authority-verified': 'Authority-checked',
-	'independently-rule-checked': 'Community-checked',
-	'structure-checked': 'Schema-checked',
-};
-
-function badgeLabel(format: string): string {
-	const badge = surface.badges[format];
-	expect(badge, `GET /v1/rulesets snapshot has no format ${format}`).toBeDefined();
-	expect(BADGE_LABEL[badge], badge).toBeDefined();
-	return BADGE_LABEL[badge];
-}
-
 // The Standard dropdown's values are the API's, except Factur-X, which the
 // rulesets catalog spells with a hyphen.
 const rulesetsFormat = (standard: string) => (standard === 'facturx' ? 'factur-x' : standard);
 
-describe('the badge beside each format', () => {
+// A CII or UBL document can be any of several formats, so those hints and
+// Auto-Detect name no single catalog format. The national hints each name one.
+const VALIDATE_FORMAT_TO_RULESETS_FORMAT: Record<string, string> = {
+	fatturapa: 'fatturapa',
+	facturae: 'facturae',
+	eslog: 'eslog',
+	poland_ksef_fa3: 'ksef',
+};
+
+// No dropdown names a badge: the check depth a user sees is the
+// verificationBadgeLabel the API sends with each verdict. The snapshot still
+// holds each format's badge id, so a format the catalog drops, or one it lists
+// with no badge, fails here after a sync.
+describe('each format in the GET /v1/rulesets snapshot', () => {
 	it('offers a Generate standard for every format in the catalog', () => {
 		expect(valuesOf('standard').map(rulesetsFormat).sort()).toEqual(Object.keys(surface.badges).sort());
 	});
 
-	it.for(optionsOf('standard'))('Generate $name opens with its badge', (option) => {
-		expect(option.description?.startsWith(`${badgeLabel(rulesetsFormat(option.value))}: `)).toBe(true);
+	it.for(optionsOf('standard'))('Generate $name has a badge id in the catalog', (option) => {
+		expect(surface.badges[rulesetsFormat(option.value)]).toMatch(/^[a-z-]+$/);
 	});
 
-	// A CII or UBL document can be any of several formats, so those hints and
-	// Auto-Detect have no single badge. The national hints each name one format.
-	const VALIDATE_FORMAT_TO_RULESETS_FORMAT: Record<string, string> = {
-		fatturapa: 'fatturapa',
-		facturae: 'facturae',
-		eslog: 'eslog',
-		poland_ksef_fa3: 'ksef',
-	};
-
-	it('gives every Validate format a badge, or is a syntax hint', () => {
-		const unbadged = valuesOf('validateFormat').filter((v) => !(v in VALIDATE_FORMAT_TO_RULESETS_FORMAT));
-		expect(unbadged.sort()).toEqual(['auto', 'cii', 'ubl']);
+	it('names a catalog format for every Validate format, or is a syntax hint', () => {
+		const unmapped = valuesOf('validateFormat').filter((v) => !(v in VALIDATE_FORMAT_TO_RULESETS_FORMAT));
+		expect(unmapped.sort()).toEqual(['auto', 'cii', 'ubl']);
 	});
 
 	it.for(Object.entries(VALIDATE_FORMAT_TO_RULESETS_FORMAT))(
-		'Validate %s opens with its badge',
+		'Validate %s has a badge id in the catalog',
 		([value, format]) => {
-			const option = optionsOf('validateFormat').find((o) => o.value === value);
-			expect(option, value).toBeDefined();
-			expect(option!.description?.startsWith(`${badgeLabel(format)}: `)).toBe(true);
+			expect(valuesOf('validateFormat')).toContain(value);
+			expect(surface.badges[format]).toMatch(/^[a-z-]+$/);
 		},
 	);
 });
 
+// A typed label goes stale with green tests when the API rewords it, so none is
+// typed: not in an option, a field description or the README.
+const BADGE_LABEL_SHAPE = /\b[A-Za-z]+-checked\b/;
+
+describe('no typed badge label', () => {
+	it('in any option or field description', () => {
+		const texts = properties.flatMap((p) => [
+			p.description ?? '',
+			...((p.options as Option[] | undefined) ?? []).map((o) => o.description ?? ''),
+		]);
+		expect(texts.filter((t) => BADGE_LABEL_SHAPE.test(t))).toEqual([]);
+	});
+
+	it('in the README', () => {
+		const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+		expect(readme.split('\n').filter((line) => BADGE_LABEL_SHAPE.test(line))).toEqual([]);
+	});
+});
+
 describe('the README', () => {
 	const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-	// Each badge has one line: "- **<badge>** (<what it means>): <format>, <format>."
-	const formatsByBadge = readme
-		.split('\n')
-		.filter((line) => /^- \*\*[A-Za-z]+-checked\*\*/.test(line))
-		.map((line): [string, string[]] => [
-			line.split('**')[1],
-			line.slice(line.indexOf('): ') + 3).replace(/\.$/, '').split(', '),
-		]);
+	const offersLine = readme.split('\n').find((line) => line.startsWith('Generate Invoice offers '));
 
-	it.for(optionsOf('standard'))('lists $name under its badge and under no other', (option) => {
+	it.for(optionsOf('standard'))('names Generate $name among the formats it offers', (option) => {
+		expect(offersLine, 'no "Generate Invoice offers" line').toBeDefined();
 		// Case-insensitive because n8n's scanner forces title case on the label ("E-SLOG")
 		// while the README keeps the format's own spelling ("e-SLOG").
 		const label = option.name.split(' (')[0].toLowerCase();
-		const listedUnder = formatsByBadge
-			.filter(([, formats]) => formats.some((format) => format.toLowerCase() === label))
-			.map(([badge]) => badge);
-		expect(listedUnder).toEqual([badgeLabel(rulesetsFormat(option.value))]);
+		const offered = offersLine!
+			.slice('Generate Invoice offers '.length)
+			.replace(/\.$/, '')
+			.split(/, | and /)
+			.map((format) => format.toLowerCase());
+		expect(offered).toContain(label);
 	});
 });
 

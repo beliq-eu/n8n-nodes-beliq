@@ -86,7 +86,7 @@
     },
     {
       "parameters": {
-        "content": "## Generate then convert between EN 16931 formats\n\n1. A sample invoice is generated as an XRechnung (CII syntax).\n2. beliq converts it to a UBL document.\n3. The UBL bytes land in the `data` binary field, ready to attach or store.\n\nConvert reports any elements that could not be carried across (`lostElements`, `lostElementsCount`) on the item JSON, so a lossy conversion is never silent.\n\nbeliq produces and converts the compliant document. Transmission (Peppol, PDP, KSeF, SDI), archiving, and reporting stay with your access point. Set up your **beliq API** credential, then run it. Start free at https://beliq.eu",
+        "content": "## Generate then convert between EN 16931 formats\n\n1. A sample invoice is generated as an XRechnung (CII syntax).\n2. beliq converts it to a UBL document.\n3. The UBL bytes land in the `data` binary field, ready to attach or store.\n\nConvert reports the losses it detects (`lostElements`, `lostElementsCount`) on the item JSON. A loss the engine does not detect is not listed, and the document still comes back when no rule of the target format sees it: https://docs.beliq.eu/api-reference/convert/#lossy-conversions-semantics\n\nbeliq produces and converts the document. Transmission (Peppol, plateforme agréée, KSeF, SDI), archiving, and reporting stay with your access point. Set up your **beliq API** credential, then run it. Start free at https://beliq.eu",
         "height": 320,
         "width": 420
       },
