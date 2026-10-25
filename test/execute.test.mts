@@ -305,18 +305,24 @@ describe('execute, generate reads the JSON envelope', () => {
 		expect(item.json.pdfKind).toBe('hybrid');
 	});
 
-	it('fails with a node error when the envelope holds no document', async () => {
-		const { output: _output, ...data } = RECORDED.body.data;
-		const run = new Beliq().execute.call(
-			context(1, GENERATE, false, helpers({ success: true, data })),
-		);
-		const error = await run.then(
-			() => undefined,
-			(e: unknown) => e,
-		);
+	it('types no document whose content type the API did not send', async () => {
+		const { contentType: _contentType, ...data } = RECORDED.body.data;
 
-		expect(error).toBeInstanceOf(NodeOperationError);
-		expect((error as NodeOperationError).message).toBe('beliq answered generate without a document');
-		expect((error as NodeOperationError).context.itemIndex).toBe(0);
+		const item = await generate({ success: true, data });
+
+		expect(item.binary).toBeUndefined();
+		expect(item.json).toEqual(data);
+	});
+
+	// beliq-api's generate route ends with this answer when the engine returned no
+	// document of the requested kind: the verdict and the document's identity, no
+	// `output`, `contentType` or `sha256`.
+	it('passes an answer with no document on as the item JSON, with no binary', async () => {
+		const { invoiceId, format, standard, profile, validationResult } = RECORDED.body.data;
+		const data = { invoiceId, format, standard, profile, validationResult };
+
+		const item = await generate({ success: true, data });
+
+		expect(item).toEqual({ json: data, pairedItem: { item: 0 } });
 	});
 });

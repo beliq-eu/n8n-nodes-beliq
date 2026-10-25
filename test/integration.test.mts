@@ -131,9 +131,8 @@ run('beliq live API', () => {
 		expect(res.headers.get('content-type')).toContain('application/json');
 		expect(res.headers.get('x-schematron-version')).toBeTruthy();
 		const generated = readGenerateEnvelope(res.bytes);
-		expect(generated).toBeDefined();
-		expect(generated!.fields.contentType).toContain('application/xml');
-		xrechnungXml = generated!.document;
+		expect(generated.document?.contentType).toContain('application/xml');
+		xrechnungXml = generated.document!.bytes;
 		expect(xrechnungXml.toString('utf8').trimStart().startsWith('<')).toBe(true);
 
 		// The depth the node passes on is the one the API states for the format:
@@ -143,7 +142,7 @@ run('beliq live API', () => {
 		};
 		const xrechnung = rulesets.data.rulesets.find((r) => r.format === 'xrechnung');
 		expect(xrechnung).toBeDefined();
-		const verdict = generated!.fields.validationResult as { verificationBadgeLabel?: string };
+		const verdict = generated.fields.validationResult as { verificationBadgeLabel?: string };
 		expect(verdict.verificationBadgeLabel).toBe(xrechnung!.verificationBadgeLabel);
 	}, LIVE_TEST_TIMEOUT_MS);
 

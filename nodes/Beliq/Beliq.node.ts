@@ -121,7 +121,7 @@ export class Beliq implements INodeType {
 					{
 						name: 'Validate Invoice',
 						value: 'validate',
-						description: 'Check an XML or PDF invoice against the rule packs beliq lists for its format',
+						description: 'Check an XML or PDF invoice against the rule packs and schemas of its format',
 						action: 'Validate an invoice document',
 					},
 					{
@@ -217,7 +217,7 @@ export class Beliq implements INodeType {
 				],
 				default: 'xml',
 				description:
-					'XML returns the invoice as text. PDF returns a hybrid PDF/A-3 with the XML embedded for Factur-X and ZUGFeRD. Every other standard has no hybrid form, so PDF returns a visualization with no XML inside it, and the legal document stays the XML. NLCIUS always returns XML, whatever this field says.',
+					'XML returns the invoice as text. PDF returns a hybrid PDF/A-3 with the XML embedded for Factur-X and ZUGFeRD. Every other standard has no hybrid form, so PDF returns a visualization with no XML inside it, and the legal document stays the XML. NLCIUS always returns XML, whatever this field says. With PDF, validationResult judges the invoice XML: the one embedded in a hybrid PDF, or for a visualization the XML it was rendered from, which Generate does not return.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
 			// One field per standard, so each lists only the profiles it accepts.
@@ -270,7 +270,7 @@ export class Beliq implements INodeType {
 				type: 'boolean',
 				default: true,
 				description:
-					'Whether to validate the generated document. When off, no rule set runs: validationResult says verified: false, its valid: false is then no verdict, and it names no check depth.',
+					'Whether to validate the generated document. When off, no rule set runs: validationResult.verified is false, valid: false then means nothing was checked, and no check depth is named. Read verified before valid.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
 
@@ -533,35 +533,30 @@ export class Beliq implements INodeType {
 				const request = buildRequest(params);
 				const response = await beliqApiRequest.call(this, request);
 				const contentTypeHeader = String(response.headers['content-type'] ?? '').toLowerCase();
-				const outputField = this.getNodeParameter('outputField', i, 'data') as string;
 
 				if (request.outputKind === 'envelope') {
 					// Generate: the document goes on as binary data, and the envelope's
 					// other fields, `validationResult` among them, as the item's JSON.
-					const generated = readGenerateEnvelope(response.body);
-					if (!generated) {
-						throw new NodeOperationError(this.getNode(), 'beliq answered generate without a document', {
-							itemIndex: i,
-						});
+					const { document, fields } = readGenerateEnvelope(response.body);
+					if (!document) {
+						returnData.push({ json: fields, pairedItem: { item: i } });
+						continue;
 					}
-					const { document, fields } = generated;
-					const mimeType =
-						typeof fields.contentType === 'string'
-							? fields.contentType
-							: params.output === 'pdf'
-								? 'application/pdf'
-								: 'application/xml';
-					const fileName = defaultFilename(operation, mimeType.includes('pdf') ? 'pdf' : 'xml');
+					const outputField = this.getNodeParameter('outputField', i, 'data') as string;
+					const fileName = defaultFilename(operation, document.contentType.includes('pdf') ? 'pdf' : 'xml');
 					returnData.push({
 						json: {
 							success: true,
 							...fields,
-							contentType: mimeType,
-							sizeBytes: document.length,
+							sizeBytes: document.bytes.length,
 							schematronVersion: response.headers['x-schematron-version'] ?? undefined,
 						},
 						binary: {
-							[outputField]: await this.helpers.prepareBinaryData(document, fileName, mimeType),
+							[outputField]: await this.helpers.prepareBinaryData(
+								document.bytes,
+								fileName,
+								document.contentType,
+							),
 						},
 						pairedItem: { item: i },
 					});
@@ -577,6 +572,7 @@ export class Beliq implements INodeType {
 				}
 
 				// Convert: the converted document as bytes, its audit trail in headers.
+				const outputField = this.getNodeParameter('outputField', i, 'data') as string;
 				const buffer = bodyToBuffer(response.body);
 				const envelope = String(response.headers['x-output-envelope'] ?? '');
 				const fileName = defaultFilename(operation, params.output, envelope);

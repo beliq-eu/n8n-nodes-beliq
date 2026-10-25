@@ -165,7 +165,7 @@ export const NOT_OFFERED: Readonly<Record<string, Readonly<Record<string, string
 		eracun: `The only profile of e-SLOG. ${DEFAULT_PROFILE}`,
 		fa3: `The only profile of KSeF. ${DEFAULT_PROFILE}`,
 		'romania-ro-cius':
-			'GET /v1/rulesets lists no Romanian format, so there is no badge to show beside it.',
+			'GET /v1/rulesets, the list of formats beliq offers, has no Romanian entry, and the Standard dropdown offers exactly the formats it lists. Advanced (JSON) can still send this profile.',
 	},
 	'validate.format': {
 		sdi_messaggio:
@@ -368,23 +368,28 @@ export function parseJsonBody(body: unknown): IDataObject {
 }
 
 export interface GenerateEnvelope {
-	/** The generated document, decoded from `data.output`. */
-	document: Buffer;
-	/** Every other field of `data`, as the API sent it. */
+	/**
+	 * The generated document, decoded from `data.output`, with the content type
+	 * the API sent beside it. Absent when the answer carries no document.
+	 */
+	document?: { bytes: Buffer; contentType: string };
+	/** The rest of `data` as the API sent it, or all of it when there is no document. */
 	fields: IDataObject;
 }
 
 /**
  * Read generate's JSON envelope (https://docs.beliq.eu/api-reference/generate/,
  * "JSON envelope"): the document base64-encoded in `data.output`, and beside it
- * `validationResult` and the document's metadata, passed on unchanged. Undefined
- * when the answer holds no document.
+ * `validationResult` and the document's metadata, passed on unchanged. beliq-api
+ * answers with the verdict and no `output` when the engine returned no document
+ * of the requested kind; that answer is passed on whole.
  */
-export function readGenerateEnvelope(body: unknown): GenerateEnvelope | undefined {
-	const data = parseJsonBody(body).data;
-	if (!isPlainObject(data) || typeof data.output !== 'string') return undefined;
+export function readGenerateEnvelope(body: unknown): GenerateEnvelope {
+	const parsed = parseJsonBody(body);
+	const data = isPlainObject(parsed.data) ? parsed.data : parsed;
+	if (typeof data.output !== 'string' || typeof data.contentType !== 'string') return { fields: data };
 	const { output, ...fields } = data;
-	return { document: Buffer.from(output, 'base64'), fields };
+	return { document: { bytes: Buffer.from(output, 'base64'), contentType: data.contentType }, fields };
 }
 
 /** Coerce a binary response body to a Buffer. */

@@ -80,18 +80,22 @@ describe('beliqApiRequest Accept header', () => {
 	it('asks generate for the JSON envelope and has n8n parse it', async () => {
 		const { calls, ctx } = capturing();
 
-		await beliqApiRequest.call(ctx, buildRequest(CASES[0].params));
+		const generate = CASES.find(({ params }) => params.operation === 'generate')!;
+		await beliqApiRequest.call(ctx, buildRequest(generate.params));
 
 		expect(calls[0].headers).toMatchObject({ Accept: 'application/json' });
 		expect(calls[0].json).toBe(true);
 		expect(calls[0].encoding).toBeUndefined();
 	});
 
-	it.each(CASES.slice(1))('sends no Accept header on $label', async ({ params }) => {
-		const { calls, ctx } = capturing();
+	it.each(CASES.filter(({ params }) => params.operation !== 'generate'))(
+		'sends no Accept header on $label',
+		async ({ params }) => {
+			const { calls, ctx } = capturing();
 
-		await beliqApiRequest.call(ctx, buildRequest(params));
+			await beliqApiRequest.call(ctx, buildRequest(params));
 
-		expect(calls[0].headers).not.toHaveProperty('Accept');
-	});
+			expect(calls[0].headers).not.toHaveProperty('Accept');
+		},
+	);
 });
