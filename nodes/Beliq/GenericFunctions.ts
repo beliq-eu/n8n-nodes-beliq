@@ -380,7 +380,7 @@ export interface GenerateEnvelope {
 /**
  * Read generate's JSON envelope (https://docs.beliq.eu/api-reference/generate/,
  * "JSON envelope"): the document base64-encoded in `data.output`, and beside it
- * `validationResult` and the document's metadata, passed on unchanged. beliq-api
+ * `validationResult` and the document's metadata, passed on unchanged. The API
  * answers with the verdict and no `output` when the engine returned no document
  * of the requested kind; that answer is passed on whole.
  */

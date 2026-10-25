@@ -314,7 +314,7 @@ describe('execute, generate reads the JSON envelope', () => {
 		expect(item.json).toEqual(data);
 	});
 
-	// beliq-api's generate route ends with this answer when the engine returned no
+	// The API's generate route ends with this answer when the engine returned no
 	// document of the requested kind: the verdict and the document's identity, no
 	// `output`, `contentType` or `sha256`.
 	it('passes an answer with no document on as the item JSON, with no binary', async () => {
