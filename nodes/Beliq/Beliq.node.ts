@@ -17,18 +17,20 @@ import {
 	defaultFilename,
 	extractApiErrorMessage,
 	parseJsonBody,
+	readGenerateEnvelope,
 	resolveGenerateTarget,
 	sniffContentType,
 	type BeliqOperation,
 	type BeliqParams,
 } from './GenericFunctions';
 
-// The option lists below are copies of the enums in the API's openapi.json,
-// and each badge is the one GET /v1/rulesets reports for that format.
-// test/apiSurface.test.mts compares both with test/fixtures/api-surface.json,
-// which `npm run surface:sync` rewrites from those two endpoints. A value the
-// API accepts and no list offers is in NOT_OFFERED (GenericFunctions.ts) with
-// its reason.
+// The option lists below are copies of the enums in the API's openapi.json.
+// test/apiSurface.test.mts compares them with test/fixtures/api-surface.json,
+// which `npm run surface:sync` rewrites from openapi.json and GET /v1/rulesets.
+// A value the API accepts and no list offers is in NOT_OFFERED
+// (GenericFunctions.ts) with its reason. No option names a format's badge: the
+// check depth a user sees is the verificationBadgeLabel the API sends with each
+// verdict, as it sent it.
 
 const DEFAULT_INVOICE = JSON.stringify(
 	{
@@ -113,13 +115,13 @@ export class Beliq implements INodeType {
 					{
 						name: 'Generate Invoice',
 						value: 'generate',
-						description: 'Build a compliant e-invoice document from invoice data',
-						action: 'Generate a compliant invoice document',
+						description: 'Build an e-invoice document from invoice data, with its validation result',
+						action: 'Generate an invoice document',
 					},
 					{
 						name: 'Validate Invoice',
 						value: 'validate',
-						description: 'Check an XML or PDF invoice against the authority-pinned rules',
+						description: 'Check an XML or PDF invoice against the rule packs beliq lists for its format',
 						action: 'Validate an invoice document',
 					},
 					{
@@ -150,52 +152,46 @@ export class Beliq implements INodeType {
 						// ignores inline eslint-disable comments, so only "E-SLOG" passes it.
 						name: 'E-SLOG (Slovenia)',
 						value: 'eslog',
-						description: 'Schema-checked: structure only, no business rules',
 					},
 					{
 						name: 'Factur-X',
 						value: 'facturx',
-						description: "Authority-checked: validated against the authority's own rules",
 					},
 					{
 						name: 'Facturae (Spain)',
 						value: 'facturae',
-						description: 'Schema-checked: structure only, no business rules',
 					},
 					{
 						name: 'FatturaPA (Italy)',
 						value: 'fatturapa',
-						description: 'Schema-checked: structure only, no business rules. Ordinaria, format FPR12.',
+						description: 'Ordinaria, format FPR12',
 					},
 					{
 						name: 'KSeF FA(3) (Poland)',
 						value: 'ksef',
 						description:
-							'Schema-checked: structure only, no business rules. Ordinary VAT invoices in PLN between Polish parties, at VAT rates 23, 22, 8, 7 and 5 only. beliq does not submit to KSeF.',
+							'Ordinary VAT invoices in PLN between Polish parties, at VAT rates 23, 22, 8, 7 and 5 only. beliq does not submit to KSeF.',
 					},
 					{
 						name: 'NLCIUS (Netherlands)',
 						value: 'nlcius',
-						description: "Authority-checked: validated against the authority's own rules",
 					},
 					{
 						name: 'Peppol BIS',
 						value: 'peppol-bis',
-						description: "Authority-checked: validated against the authority's own rules",
 					},
 					{
 						name: 'XRechnung',
 						value: 'xrechnung',
-						description: "Authority-checked: validated against the authority's own rules",
 					},
 					{
 						name: 'ZUGFeRD',
 						value: 'zugferd',
-						description: "Authority-checked: validated against the authority's own rules",
 					},
 				],
 				default: 'xrechnung',
-				description: 'The e-invoice standard to generate',
+				description:
+					'The e-invoice standard to generate. How deep the check of the generated document went comes back in validationResult.verificationBadgeLabel, as the API states it; a result without it states no depth.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
 			{
@@ -273,7 +269,8 @@ export class Beliq implements INodeType {
 				name: 'verify',
 				type: 'boolean',
 				default: true,
-				description: 'Whether to validate the generated document and return the result',
+				description:
+					'Whether to validate the generated document. When off, no rule set runs: validationResult says verified: false, its valid: false is then no verdict, and it names no check depth.',
 				displayOptions: { show: { operation: ['generate'] } },
 			},
 
@@ -339,27 +336,24 @@ export class Beliq implements INodeType {
 						// Title case for n8n's verification scanner, as on Generate Standard.
 						name: 'E-SLOG',
 						value: 'eslog',
-						description: 'Schema-checked: structure only, no business rules',
 					},
 					{
 						name: 'Facturae',
 						value: 'facturae',
-						description: 'Schema-checked: structure only, no business rules',
 					},
 					{
 						name: 'FatturaPA',
 						value: 'fatturapa',
-						description: 'Schema-checked: structure only, no business rules',
 					},
 					{
 						name: 'KSeF FA(3)',
 						value: 'poland_ksef_fa3',
-						description: 'Schema-checked: structure only, no business rules',
 					},
 					{ name: 'UBL', value: 'ubl' },
 				],
 				default: 'auto',
-				description: 'Hint the expected format, or auto-detect from the document',
+				description:
+					'Hint the expected format, or auto-detect from the document. The result names how deep its check went in verificationBadgeLabel, as the API states it; a result without it states no depth.',
 				displayOptions: { show: { operation: ['validate'] } },
 			},
 			{
@@ -438,7 +432,7 @@ export class Beliq implements INodeType {
 				],
 				default: 'en16931',
 				description:
-					'The Factur-X or ZUGFeRD profile to label the target document with. Only the profile identifier is rewritten and the content is not adapted, so an invoice with lines converted to MINIMUM or BASIC WL fails that profile schema.',
+					'The Factur-X or ZUGFeRD profile to label the target document with. Only the profile identifier is rewritten and the content is not adapted, so an invoice with lines converted to MINIMUM or BASIC WL fails that profile schema. An XML source comes back as CII XML; a PDF comes back only from a hybrid PDF source. The PDF is the one sent, with only its annotation flags normalised for PDF/A, when its embedded XML already is the target: that XML was checked and the PDF container was not. Otherwise it is that PDF re-wrapped around the converted XML, returned only after veraPDF passed it against PDF/A-3b. With a test key the PDF is watermarked last, after any veraPDF check. Detail: https://docs.beliq.eu/api-reference/convert/#a-pdf-sent-for-a-zugferd-or-factur-x-target',
 				displayOptions: { show: { operation: ['convert'], targetFormat: ['facturx', 'zugferd'] } },
 			},
 			{
@@ -539,22 +533,52 @@ export class Beliq implements INodeType {
 				const request = buildRequest(params);
 				const response = await beliqApiRequest.call(this, request);
 				const contentTypeHeader = String(response.headers['content-type'] ?? '').toLowerCase();
+				const outputField = this.getNodeParameter('outputField', i, 'data') as string;
+
+				if (request.outputKind === 'envelope') {
+					// Generate: the document goes on as binary data, and the envelope's
+					// other fields, `validationResult` among them, as the item's JSON.
+					const generated = readGenerateEnvelope(response.body);
+					if (!generated) {
+						throw new NodeOperationError(this.getNode(), 'beliq answered generate without a document', {
+							itemIndex: i,
+						});
+					}
+					const { document, fields } = generated;
+					const mimeType =
+						typeof fields.contentType === 'string'
+							? fields.contentType
+							: params.output === 'pdf'
+								? 'application/pdf'
+								: 'application/xml';
+					const fileName = defaultFilename(operation, mimeType.includes('pdf') ? 'pdf' : 'xml');
+					returnData.push({
+						json: {
+							success: true,
+							...fields,
+							contentType: mimeType,
+							sizeBytes: document.length,
+							schematronVersion: response.headers['x-schematron-version'] ?? undefined,
+						},
+						binary: {
+							[outputField]: await this.helpers.prepareBinaryData(document, fileName, mimeType),
+						},
+						pairedItem: { item: i },
+					});
+					continue;
+				}
 
 				if (request.outputKind === 'json' || contentTypeHeader.includes('application/json')) {
-					// JSON result (validate/parse) or the generate JSON fallback.
+					// JSON result (validate/parse), or a JSON answer where bytes were expected.
 					const parsed = parseJsonBody(response.body);
 					const data = (parsed.data as IDataObject) ?? parsed;
 					returnData.push({ json: data, pairedItem: { item: i } });
 					continue;
 				}
 
-				// Binary document (generate XML/PDF, or convert output).
+				// Convert: the converted document as bytes, its audit trail in headers.
 				const buffer = bodyToBuffer(response.body);
-				const outputField = this.getNodeParameter('outputField', i, 'data') as string;
-				const envelope =
-					operation === 'convert'
-						? String(response.headers['x-output-envelope'] ?? '')
-						: (params.output ?? 'xml');
+				const envelope = String(response.headers['x-output-envelope'] ?? '');
 				const fileName = defaultFilename(operation, params.output, envelope);
 				const mimeType =
 					contentTypeHeader || (envelope === 'pdf' ? 'application/pdf' : 'application/xml');
@@ -564,21 +588,16 @@ export class Beliq implements INodeType {
 					success: true,
 					contentType: mimeType,
 					sizeBytes: buffer.length,
-				};
-				if (operation === 'generate') {
-					json.schematronVersion = response.headers['x-schematron-version'] ?? undefined;
-					if (response.headers['x-pdf-kind']) json.pdfKind = response.headers['x-pdf-kind'];
-				} else {
-					json.sourceFormat = response.headers['x-source-format'];
-					json.targetFormat = response.headers['x-target-format'];
-					json.profileDetected = response.headers['x-profile-detected'] || undefined;
-					json.lostElementsCount = Number(response.headers['x-lost-elements-count'] ?? 0);
-					json.lostElements = parseLostElements(response.headers['x-lost-elements']);
-					json.conversionTools = String(response.headers['x-conversion-tools'] ?? '')
+					sourceFormat: response.headers['x-source-format'],
+					targetFormat: response.headers['x-target-format'],
+					profileDetected: response.headers['x-profile-detected'] || undefined,
+					lostElementsCount: Number(response.headers['x-lost-elements-count'] ?? 0),
+					lostElements: parseLostElements(response.headers['x-lost-elements']),
+					conversionTools: String(response.headers['x-conversion-tools'] ?? '')
 						.split(',')
-						.filter((t) => t.length > 0);
-					json.outputEnvelope = envelope;
-				}
+						.filter((t) => t.length > 0),
+					outputEnvelope: envelope,
+				};
 
 				returnData.push({
 					json,

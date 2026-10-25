@@ -30,12 +30,13 @@ function raw(operation: BeliqParams['operation'], overrides: Partial<BeliqParams
 }
 
 describe('buildRequest - generate', () => {
-	it('posts JSON to /v1/generate and expects binary output', () => {
+	it('posts JSON to /v1/generate and asks for the JSON envelope', () => {
 		const r = buildRequest(gen());
 		expect(r.method).toBe('POST');
 		expect(r.endpoint).toBe('/v1/generate');
 		expect(r.contentType).toBe('application/json');
-		expect(r.outputKind).toBe('binary');
+		expect(r.accept).toBe('application/json');
+		expect(r.outputKind).toBe('envelope');
 		expect(r.jsonBody).toEqual({
 			standard: 'xrechnung',
 			output: 'xml',
