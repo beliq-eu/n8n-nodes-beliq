@@ -326,3 +326,65 @@ describe('execute, generate reads the JSON envelope', () => {
 		expect(item).toEqual({ json: data, pairedItem: { item: 0 } });
 	});
 });
+
+describe('execute, convert reads the lost elements from their header', () => {
+	const CONVERT = {
+		operation: 'convert',
+		inputSource: 'text',
+		inputText: '<Invoice/>',
+		sourceFormat: 'auto',
+		targetFormat: 'ubl',
+		advanced: '{}',
+		outputField: 'data',
+	};
+
+	async function convert(lostElements: unknown[], lostElementsCount: number) {
+		const headers = {
+			'content-type': 'application/xml',
+			'x-target-format': 'ubl',
+			'x-lost-elements-count': String(lostElementsCount),
+			'x-lost-elements': JSON.stringify(lostElements),
+		};
+		const [output] = await new Beliq().execute.call(
+			context(1, CONVERT, false, {
+				httpRequestWithAuthentication: async () => ({
+					statusCode: 200,
+					headers,
+					body: Buffer.from('<Invoice>converted</Invoice>'),
+				}),
+				prepareBinaryData: async (data: Buffer, fileName: string, mimeType: string) => ({
+					data: data.toString('base64'),
+					fileName,
+					mimeType,
+				}),
+			}),
+		);
+		return output[0].json;
+	}
+
+	it('puts each lost element on the item JSON as the object the API sent', async () => {
+		// From the worked example at https://docs.beliq.eu/api-reference/convert/#lostelement-schema
+		const lost = {
+			path: '/Invoice/{urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2}AccountingSupplierParty/{urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2}Party/cbc:EndpointID',
+			value: null,
+			reason: 'Peppol endpoint stripped (target is not peppol-bis)',
+			severity: 'info',
+			acceptableLoss: true,
+		};
+		const json = await convert([lost], 1);
+
+		expect(json.lostElementsCount).toBe(1);
+		expect(json.lostElements).toEqual([lost]);
+	});
+
+	it('passes on the one truncation entry of a list past the header cap, with the exact count', async () => {
+		const truncated = {
+			truncated: true,
+			reason: 'Audit list exceeded 6144 bytes (412 entries); see X-Lost-Elements-Count for the exact count.',
+		};
+		const json = await convert([truncated], 412);
+
+		expect(json.lostElementsCount).toBe(412);
+		expect(json.lostElements).toEqual([truncated]);
+	});
+});
