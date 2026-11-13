@@ -55,7 +55,6 @@ Requires n8n with `n8nNodesApiVersion: 1` and Node.js >= 20.15.
 npm install
 npm run build      # tsc + copy icons into dist
 npm run lint       # n8n-node lint: the rules n8n's verification scanner applies
-npm run scrub:check   # no em-dash in any tracked file
 npm run surface:sync  # rewrite test/fixtures/api-surface.json from the live API spec and GET /v1/rulesets
 npm test           # unit tests (no network)
 BELIQ_API_KEY=blq_xxx npm run test:integration   # hits the live API; draws quota

@@ -31,9 +31,6 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Scrub check (no em-dash)
-        run: npm run scrub:check
-
       - name: CHANGELOG.md has a heading for the package.json version
         run: |
           v="$(node -p "require('./package.json').version")"

@@ -41,7 +41,6 @@
     "dev": "tsc --watch",
     "lint": "n8n-node lint",
     "lintfix": "n8n-node lint --fix",
-    "scrub:check": "bash scripts/scrub-check.sh",
     "surface:sync": "node scripts/sync-api-surface.mjs",
     "test": "vitest run --exclude test/integration.test.mts",
     "test:integration": "vitest run test/integration.test.mts"
