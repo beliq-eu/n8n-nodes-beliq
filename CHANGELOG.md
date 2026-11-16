@@ -5,6 +5,23 @@ breaking change; the rest of its changes are in the git history between the
 version tags (https://github.com/beliq-eu/n8n-nodes-beliq/tags). 0.1.0 is on
 npm without a tag. Dates are the npm publish date, in UTC.
 
+## 0.4.1 - 2026-11-16
+
+- The README says that beliq covers three steps of an e-invoice: generate,
+  validate, and deliver (in development). The node runs the first two, parses
+  and converts, and never sends or files an invoice. Until delivery through
+  beliq is available, transmission (Peppol, plateforme agréée, SDI) and
+  tax-authority reporting stay with your access point. Archiving stays with
+  you, and beliq does not operate KSeF submission. The sticky notes of the two
+  workflow templates say the same.
+- The README says what each `lostElements` entry of Convert Invoice holds
+  (`path`, `value`, `reason`, `severity`, `acceptableLoss`), and that the list
+  is one `{ truncated: true }` entry when it would pass the API's 6 KB header
+  cap, with `lostElementsCount` still the exact count. Convert already
+  returned the entries this way; tests now cover both shapes.
+- Built with `n8n-workflow` 3 and `@n8n/node-cli` 0.56. The node's source and
+  its `n8n-workflow` peer range (`*`) are unchanged.
+
 ## 0.4.0 - 2026-10-25
 
 - Generate Invoice returns the validation result. The item JSON carries
