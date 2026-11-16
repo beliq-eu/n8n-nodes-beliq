@@ -2,7 +2,7 @@
 
 An [n8n](https://n8n.io) community node: validate, generate, convert and parse EU e-invoices with the [beliq](https://beliq.eu) API from n8n, in the formats listed under [Formats](#formats).
 
-beliq produces and checks the document. Transmission (Peppol, plateforme agréée, KSeF, SDI), archiving, and tax-authority reporting stay with your access point. This node never sends or files an invoice.
+beliq covers three steps of an e-invoice: generate, validate, and deliver (in development). This node runs the first two and also parses and converts documents; it never sends or files an invoice. Until delivery through beliq is available, transmission (Peppol, plateforme agréée, SDI) and tax-authority reporting stay with your access point. Archiving stays with you, and beliq does not operate KSeF submission.
 
 ## Installation
 
