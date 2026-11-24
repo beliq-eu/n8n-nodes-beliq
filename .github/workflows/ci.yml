@@ -14,15 +14,18 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      matrix:
+        node-version: ['22', '26']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Install dependencies
@@ -114,7 +117,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: '26'
           cache: npm
 
       - name: Install dependencies
@@ -127,3 +130,16 @@ jobs:
 
   guard:
     uses: beliq-eu/.github/.github/workflows/guard.yml@6a7430b0ec6fb94506862b5460343d2d04873cb1 # main
+
+  # Branch protection requires this one check instead of each leg of the `unit` matrix, so
+  # adding or dropping a version needs no change there. It passes only when every leg passed.
+  test:
+    if: ${{ always() }}
+    needs: [unit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every leg of the unit matrix passed
+        env:
+          RESULT: ${{ needs.unit.result }}
+        run: test "$RESULT" = success
