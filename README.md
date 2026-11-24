@@ -47,7 +47,7 @@ Import any of these from the n8n canvas (Templates, Import from file), set your 
 
 ## Compatibility
 
-Requires n8n with `n8nNodesApiVersion: 1` and Node.js >= 22.
+Requires n8n with `n8nNodesApiVersion: 1` and Node.js >= 24.
 
 ## Development
 
