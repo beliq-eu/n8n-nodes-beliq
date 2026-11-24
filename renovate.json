@@ -8,19 +8,19 @@
       "allowedVersions": "<10.0.0"
     },
     {
-      "description": "vitest 5 drops Node 20 from its type peer: vitest 4.1.11 peerOptional-requires `@types/node ^20.0.0 || ^22.0.0 || >=24.0.0`, vitest 5.0.0 requires `^22.0.0 || >=24.0.0`. This repo pins `@types/node ^20.14.0` to track its engines floor, so npm cannot resolve and the pull request can never go green. Raising the pin to ^20.19.0 does not help: that satisfies vite 8, which is the conflict npm prints first, but not vitest 5 itself, which is the one that actually blocks. The only pin vitest 5 accepts is ^22 or >=24, and that means raising the engines floor off Node 20 first. Lift this together with engines.node and @types/node, not on its own.",
+      "description": "vitest stays on 4 for now. The hold was added because vitest 5 requires `@types/node ^22.0.0 || >=24.0.0`, and this repo pinned `@types/node ^20` to track a Node 20 engines floor. The floor is now `node >=22` with `@types/node ^22`, so that reason is gone. Take vitest 5 as its own change, with its own CI run, and remove this rule in it.",
       "matchPackageNames": ["vitest", "@vitest/**"],
       "allowedVersions": "<5.0.0"
     },
     {
-      "description": "`@types/node` tracks this repo's engines floor, `node >=20.15` in package.json, so a major past 20 would type development against Node APIs the package says it supports running without. Renovate proposed 24 as https://github.com/beliq-eu/n8n-nodes-beliq/pull/23, which is why this rule exists. Same engines-floor fact as the vitest rule above, and lifting the two together with engines.node is the only move that holds: see that rule for what vitest 5 needs. The floor is a per-repo fact, so this stays out of the shared preset.",
+      "description": "`@types/node` tracks this repo's engines floor, `node >=22` in package.json, so a major past 22 would type development against Node APIs the package does not promise to its users. Raise it together with engines.node. The floor is a per-repo fact, so this stays out of the shared preset.",
       "matchPackageNames": ["@types/node"],
-      "allowedVersions": "<21.0.0"
+      "allowedVersions": "<23.0.0"
     },
     {
-      "description": "Node stays on 22 in the workflows. Moving this repository alone would put beliq's repositories on two Node majors. `@types/node` is held lower, by the engines-floor rule above. The github-actions manager reads setup-node's `node-version:` input as depName `node` with packageName `actions/node-versions`, and `matchPackageNames` matches the packageName, so `actions/node-versions` is the name that holds the `node-version:` lines. Renovate proposed node 26 as https://github.com/beliq-eu/n8n-nodes-beliq/pull/72 while this repository had no node rule. Node 22 reaches end of life on 2027-04-30 (nodejs/Release schedule.json), so this hold is temporary: lift it in the planned move of every beliq repository to a newer Node major before that date, not on its own.",
+      "description": "Node is capped below 27 in the workflows. CI runs Node 26, and the `node-version` matrix also tests the engines floor in package.json. Node 27 is not an LTS release, so the next move is to 28, in every beliq repository at once rather than in this one alone. The github-actions manager reads setup-node's `node-version:` input as depName `node` with packageName `actions/node-versions`, and `matchPackageNames` matches the packageName, so `actions/node-versions` is the name that holds the `node-version:` lines.",
       "matchPackageNames": ["node", "actions/node-versions"],
-      "allowedVersions": "<23.0.0"
+      "allowedVersions": "<27.0.0"
     },
     {
       "description": "Auto-merge minor updates too, once the required checks pass. The default branch of this repository carries a required status check set (the guard checks and the repository's own test check), so a green pull request means named checks ran and passed, not that nothing ran. Measured on 2026-11-02 with `GET /repos/{owner}/{repo}/rules/branches/main`; check it again before copying this rule to another repository. The two rules below take exceptions out, so they have to stay below this one.",
